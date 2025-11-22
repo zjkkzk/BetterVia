@@ -1,0 +1,48 @@
+{
+  "themes": [
+    {
+      "id": "default",
+      "names": {
+        "zh-CN": "默认",
+        "zh-TW": "默認",
+        "en": "Default"
+      },
+      "authors": {
+        "zh-CN": "Via官方",
+        "zh-TW": "Via官方",
+        "en": "Via Official"
+      },
+      "previewUrl": "https://gitee.com/jiguro/BetterVia/raw/master/Theme/Home_Default/Home_Default.jpg",
+      "htmlUrls": {
+        "mark.via": "https://gitee.com/jiguro/BetterVia/raw/master/Theme/Home_Default/Home_Default.html",
+        "mark.via.gp": "https://gitee.com/jiguro/BetterVia/raw/master/Theme_GP/Home_GP_Default/Home_GP_Default.html"
+      },
+      "cssUrls": {
+        "mark.via": "https://gitee.com/jiguro/BetterVia/raw/master/Theme/Home_Default/Home_Default.css",
+        "mark.via.gp": "https://gitee.com/jiguro/BetterVia/raw/master/Theme_GP/Home_GP_Default/Home_GP_Default.css"
+      }
+    },
+    {
+      "id": "concise",
+      "names": {
+        "zh-CN": "简洁",
+        "zh-TW": "簡潔",
+        "en": "Concise"
+      },
+      "authors": {
+        "zh-CN": "@半烟半雨溪桥畔",
+        "zh-TW": "@半烟半雨溪桥畔",
+        "en": "@半烟半雨溪桥畔"
+      },
+      "previewUrl": "https://gitee.com/jiguro/BetterVia/raw/master/Theme/Home_Concise/Home_Concise.jpg",
+      "htmlUrls": {
+        "mark.via": "https://gitee.com/jiguro/BetterVia/raw/master/Theme/Home_Concise/Home_Concise.html",
+        "mark.via.gp": "https://gitee.com/jiguro/BetterVia/raw/master/Theme_GP/Home_GP_Concise/Home_GP_Concise.html"
+      },
+      "cssUrls": {
+        "mark.via": "https://gitee.com/jiguro/BetterVia/raw/master/Theme/Home_Concise/Home_Concise.css",
+        "mark.via.gp": "https://gitee.com/jiguro/BetterVia/raw/master/Theme_GP/Home_GP_Concise/Home_GP_Concise.css"
+      }
+    }
+  ]
+}
