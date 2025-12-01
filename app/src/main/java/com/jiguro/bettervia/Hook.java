@@ -116,7 +116,7 @@ public class Hook implements IXposedHookLoadPackage {
 
 	// 主题和更新URL
 	private static final String GITEE_THEMES_JSON_URL = "https://gitee.com/jiguro/BetterVia/raw/master/themes.json";
-	private static final String GITHUB_THEMES_JSON_URL = "https://raw.githubusercontent.com/JiGuroLGC/BetterVia/main/Theme/themes.json";
+	private static final String GITHUB_THEMES_JSON_URL = "https://raw.githubusercontent.com/JiGuroLGC/BetterVia/main/themes.json";
 	private static final String GITHUB_UPDATE_URL = "https://raw.githubusercontent.com/JiGuroLGC/BetterVia/main/update.json";
 	private static final String GITEE_UPDATE_URL = "https://gitee.com/JiGuro/BetterVia/raw/master/update.json";
 
