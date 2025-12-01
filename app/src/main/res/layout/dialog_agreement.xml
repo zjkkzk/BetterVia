@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/white"
+    android:padding="20dp">
+
+    <!-- 标题栏 - 固定高度，确保不被挤压 -->
+    <RelativeLayout
+        android:id="@+id/title_container"
+        android:layout_width="match_parent"
+        android:layout_height="80dp"
+        android:paddingTop="16dp"
+        android:paddingBottom="16dp">
+
+        <TextView
+            android:id="@+id/title_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/agreement_title"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:textColor="@color/black"
+            android:layout_alignParentStart="true"
+            android:layout_centerVertical="true"
+            android:minHeight="40dp" />
+
+    </RelativeLayout>
+
+    <!-- 协议内容区域（可滚动） - 使用固定高度，避免挤压标题 -->
+    <ScrollView
+        android:id="@+id/agreement_scrollview"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="8dp"
+        android:scrollbars="vertical">
+
+        <TextView
+            android:id="@+id/agreement_content"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/agreement_content"
+            android:textSize="15sp"
+            android:textColor="@color/black"
+            android:lineSpacingExtra="6dp"
+            android:textIsSelectable="true"
+            android:padding="8dp" />
+
+    </ScrollView>
+
+    <!-- 底部按钮区域 - 固定高度 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:paddingTop="16dp">
+
+        <Button
+            android:id="@+id/disagree_button"
+            android:layout_width="0dp"
+            android:layout_height="52dp"
+            android:layout_weight="1"
+            android:layout_marginEnd="10dp"
+            android:text="@string/disagree_button"
+            android:background="@drawable/button_border"
+            android:textColor="@color/black"
+            android:textSize="16sp" />
+
+        <Button
+            android:id="@+id/agree_button"
+            android:layout_width="0dp"
+            android:layout_height="52dp"
+            android:layout_weight="1"
+            android:layout_marginStart="10dp"
+            android:text="@string/agree_button"
+            android:background="@drawable/button_primary"
+            android:textColor="@color/white"
+            android:textSize="16sp" />
+
+    </LinearLayout>
+
+</LinearLayout>

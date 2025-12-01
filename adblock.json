@@ -1,0 +1,330 @@
+{
+  "rules": [
+    {
+      "id": "watermark_filter",
+      "category": "small",
+      "names": {
+        "zh-CN": "网页水印过滤",
+        "en": "Web Watermark Filter"
+      },
+      "descriptions": {
+        "zh-CN": "100+规则，过滤水印，能识别就用",
+        "en": "100+ rules, filter watermarks, use if recognized"
+      },
+      "details": {
+        "zh-CN": "过滤网页上的水印，包括图片和文字水印。",
+        "en": "Filter watermarks on web pages, including image and text watermarks."
+      },
+      "author": "runningcheese",
+      "homepage": "https://github.com/runningcheese/RunningCheese-Firefox/tree/master/Restore",
+      "downloadUrls": {
+        "GitHub": "https://raw.githubusercontent.com/runningcheese/RunningCheese-Firefox/master/Restore/Adblock_Watermark.txt",
+        "jsdelivr": "https://gcore.jsdelivr.net/gh/runningcheese/RunningCheese-Firefox/Restore/Adblock_Watermark.txt"
+      }
+    },
+    {
+      "id": "ad_filter_j",
+      "category": "small",
+      "names": {
+        "zh-CN": "Ad Filter J",
+        "en": "Ad Filter J"
+      },
+      "descriptions": {
+        "zh-CN": "400+规则，小巧精悍",
+        "en": "400+ rules, small but powerful"
+      },
+      "details": {
+        "zh-CN": "小巧精悍的广告过滤规则。",
+        "en": "Small but powerful ad filtering rules."
+      },
+      "author": "jk278",
+      "homepage": "https://github.com/jk278/Ad-J",
+      "downloadUrls": {
+        "GitHub": "https://raw.githubusercontent.com/jk278/Ad-J/main/Ad-J.txt",
+        "镜像": "https://ghfast.top/raw.githubusercontent.com/jk278/Ad-J/main/Ad-J.txt"
+      }
+    },
+    {
+      "id": "no_app_download",
+      "category": "small",
+      "names": {
+        "zh-CN": "去除APP下载提醒",
+        "en": "Remove APP Download Reminder"
+      },
+      "descriptions": {
+        "zh-CN": "800+规则，专打下载提醒",
+        "en": "800+ rules, specifically for download reminders"
+      },
+      "details": {
+        "zh-CN": "专门用于去除APP下载提醒的规则集。",
+        "en": "Rule set specifically for removing APP download reminders."
+      },
+      "author": "Noyllopa",
+      "homepage": "https://github.com/Noyllopa/NoAppDownload",
+      "downloadUrls": {
+        "GitHub": "https://raw.githubusercontent.com/Noyllopa/NoAppDownload/master/NoAppDownload.txt",
+        "jsdelivr": "https://cdn.jsdelivr.net/gh/Noyllopa/NoAppDownload@master/NoAppDownload.txt"
+      }
+    },
+    {
+      "id": "warning_removal",
+      "category": "small",
+      "names": {
+        "zh-CN": "警告移除Warning Removal List",
+        "en": "Warning Removal List"
+      },
+      "descriptions": {
+        "zh-CN": "近2K规则，Via预留，用于移除网站屏蔽拦截",
+        "en": "Nearly 2K rules, reserved for Via, used to remove website blocking"
+      },
+      "details": {
+        "zh-CN": "用于移除网站屏蔽拦截的警告移除列表。",
+        "en": "Warning removal list for removing website blocking."
+      },
+      "author": "",
+      "homepage": "",
+      "downloadUrls": {
+        "链接": "https://easylist-downloads.adblockplus.org/antiadblockfilters.txt"
+      }
+    },
+    {
+      "id": "lightweight_ad_block",
+      "category": "small",
+      "names": {
+        "zh-CN": "轻量广告拦截规则",
+        "en": "Lightweight Ad Block Rules"
+      },
+      "descriptions": {
+        "zh-CN": "5K+规则，作为很多大型规则的上游",
+        "en": "5K+ rules, used as upstream for many large rules"
+      },
+      "details": {
+        "zh-CN": "轻量级的广告拦截规则，被很多大型规则作为上游使用。",
+        "en": "Lightweight ad blocking rules used as upstream for many large rules."
+      },
+      "author": "damengzhu",
+      "homepage": "https://github.com/damengzhu/banad",
+      "downloadUrls": {
+        "GitHub": "https://raw.githubusercontent.com/damengzhu/banad/main/jiekouAD.txt",
+        "jsdelivr": "https://gcore.jsdelivr.net/gh/217heidai/adblockfilters@main/rules/jiekouAD.txt"
+      }
+    },
+    {
+      "id": "adguard_mobile",
+      "category": "small",
+      "names": {
+        "zh-CN": "AdGuard Mobile",
+        "en": "AdGuard Mobile"
+      },
+      "descriptions": {
+        "zh-CN": "8K+规则，专治手机端的广告，不适配规则适中",
+        "en": "8K+ rules, specifically for mobile ads, moderate incompatibility"
+      },
+      "details": {
+        "zh-CN": "专门针对移动设备的广告过滤规则。",
+        "en": "Ad filtering rules specifically for mobile devices."
+      },
+      "author": "AdGuard",
+      "homepage": "",
+      "downloadUrls": {
+        "链接": "https://filters.adtidy.org/extension/ublock/filters/11.txt"
+      }
+    },
+    {
+      "id": "adblock_rules_other",
+      "category": "small",
+      "names": {
+        "zh-CN": "去广告Adblock规则",
+        "en": "Adblock Rules for Ad Removal"
+      },
+      "descriptions": {
+        "zh-CN": "近9K规则，的一部分",
+        "en": "Nearly 9K rules, part of the set"
+      },
+      "details": {
+        "zh-CN": "去广告Adblock规则的一部分。",
+        "en": "Part of the ad removal Adblock rules."
+      },
+      "author": "lingeringsound",
+      "homepage": "https://github.com/lingeringsound/adblock_auto",
+      "downloadUrls": {
+        "GitHub": "https://raw.githubusercontent.com/lingeringsound/adblock_auto/main/base/%E5%85%B6%E4%BB%96.prop",
+        "镜像": "https://ghfast.top/raw.githubusercontent.com/lingeringsound/adblock_auto/main/base/%E5%85%B6%E4%BB%96.prop"
+      }
+    },
+    {
+      "id": "goodbyeads_whitelist",
+      "category": "small",
+      "names": {
+        "zh-CN": "GOODBYEADS-白名单",
+        "en": "GOODBYEADS Whitelist"
+      },
+      "descriptions": {
+        "zh-CN": "13K+规则，均为避免误杀规则，GOODBYEADS大型规则的一部分",
+        "en": "13K+ rules, all for avoiding false positives, part of GOODBYEADS large rules"
+      },
+      "details": {
+        "zh-CN": "GOODBYEADS大型规则的白名单部分，用于避免误杀。",
+        "en": "Whitelist part of GOODBYEADS large rules for avoiding false positives."
+      },
+      "author": "8680",
+      "homepage": "https://github.com/8680/GOODBYEADS",
+      "downloadUrls": {
+        "GitHub": "https://raw.githubusercontent.com/8680/GOODBYEADS/master/data/rules/allow.txt",
+        "镜像": "https://ghfast.top/raw.githubusercontent.com/8680/GOODBYEADS/master/data/rules/allow.txt"
+      }
+    },
+    {
+      "id": "adguard_cookie",
+      "category": "small",
+      "names": {
+        "zh-CN": "AdGuard Cookie过滤规则",
+        "en": "AdGuard Cookie Filter Rules"
+      },
+      "descriptions": {
+        "zh-CN": "20K+规则，不适配较多",
+        "en": "20K+ rules, many incompatibilities"
+      },
+      "details": {
+        "zh-CN": "AdGuard的Cookie过滤规则。",
+        "en": "AdGuard's cookie filtering rules."
+      },
+      "author": "AdGuard",
+      "homepage": "",
+      "downloadUrls": {
+        "链接": "https://filters.adtidy.org/extension/ublock/filters/18.txt"
+      }
+    },
+    {
+      "id": "dont_care_about_cookies",
+      "category": "small",
+      "names": {
+        "zh-CN": "不关注Cookie",
+        "en": "I Don't Care About Cookies"
+      },
+      "descriptions": {
+        "zh-CN": "24K+规则，均适配，多为CSS规则",
+        "en": "24K+ rules, all adapted, mostly CSS rules"
+      },
+      "details": {
+        "zh-CN": "不关注Cookie的过滤规则，主要用于处理Cookie相关的提示。",
+        "en": "I don't care about cookies filtering rules, mainly for handling cookie-related prompts."
+      },
+      "author": "",
+      "homepage": "https://www.i-dont-care-about-cookies.eu/",
+      "downloadUrls": {
+        "链接": "https://www.i-dont-care-about-cookies.eu/abp/"
+      }
+    },
+    {
+      "id": "adrules_lite",
+      "category": "large",
+      "names": {
+        "zh-CN": "AdRules AdBlock List Lite",
+        "en": "AdRules AdBlock List Lite"
+      },
+      "descriptions": {
+        "zh-CN": "34K+规则，不适配规则较少",
+        "en": "34K+ rules, few incompatibilities"
+      },
+      "details": {
+        "zh-CN": "AdRules的精简版广告拦截列表。",
+        "en": "Lite version of AdRules ad blocking list."
+      },
+      "author": "Cats-Team",
+      "homepage": "https://github.com/Cats-Team/AdRules",
+      "downloadUrls": {
+        "GitHub": "https://raw.githubusercontent.com/Cats-Team/AdRules/main/adblock_lite.txt",
+        "Bitbucket": "https://bitbucket.org/hacamer/adrules/raw/main/adblock_lite.txt"
+      }
+    },
+    {
+      "id": "mixed_rules_lite",
+      "category": "large",
+      "names": {
+        "zh-CN": "混合规则精简版",
+        "en": "Mixed Rules Lite Version"
+      },
+      "descriptions": {
+        "zh-CN": "近60K规则，均适配",
+        "en": "Nearly 60K rules, all adapted"
+      },
+      "details": {
+        "zh-CN": "混合规则的精简版本。",
+        "en": "Lite version of mixed rules."
+      },
+      "author": "lingeringsound",
+      "homepage": "https://github.com/lingeringsound/adblock_auto",
+      "downloadUrls": {
+        "GitHub": "https://raw.githubusercontent.com/lingeringsound/adblock_auto/main/Rules/adblock_auto_lite.txt",
+        "镜像": "https://ghfast.top/raw.githubusercontent.com/lingeringsound/adblock_auto/main/Rules/adblock_auto_lite.txt"
+      }
+    },
+    {
+      "id": "abp_merge_rules",
+      "category": "large",
+      "names": {
+        "zh-CN": "ABP Merge Rules",
+        "en": "ABP Merge Rules"
+      },
+      "descriptions": {
+        "zh-CN": "77K+规则，不适配规则适中",
+        "en": "77K+ rules, moderate incompatibility"
+      },
+      "details": {
+        "zh-CN": "ABP合并规则。",
+        "en": "ABP merge rules."
+      },
+      "author": "damengzhu",
+      "homepage": "https://github.com/damengzhu/abpmerge",
+      "downloadUrls": {
+        "GitHub": "https://raw.githubusercontent.com/damengzhu/abpmerge/main/abpmerge.txt",
+        "镜像": "https://ghfast.top/raw.githubusercontent.com/damengzhu/abpmerge/main/abpmerge.txt"
+      }
+    },
+    {
+      "id": "goodbyeads_dns",
+      "category": "large",
+      "names": {
+        "zh-CN": "GOODBYEADS-DNS",
+        "en": "GOODBYEADS DNS"
+      },
+      "descriptions": {
+        "zh-CN": "近100K规则，均为适配规则，GOODBYEADS大型规则的一部分",
+        "en": "Nearly 100K rules, all adapted, part of GOODBYEADS large rules"
+      },
+      "details": {
+        "zh-CN": "GOODBYEADS大型规则的DNS部分。",
+        "en": "DNS part of GOODBYEADS large rules."
+      },
+      "author": "8680",
+      "homepage": "https://github.com/8680/GOODBYEADS",
+      "downloadUrls": {
+        "GitHub": "https://raw.githubusercontent.com/8680/GOODBYEADS/master/data/rules/dns.txt",
+        "镜像": "https://ghfast.top/raw.githubusercontent.com/8680/GOODBYEADS/master/data/rules/dns.txt"
+      }
+    },
+    {
+      "id": "adblock_dns",
+      "category": "large",
+      "names": {
+        "zh-CN": "AdBlock DNS",
+        "en": "AdBlock DNS"
+      },
+      "descriptions": {
+        "zh-CN": "226K+规则，均适配，但规则数庞大",
+        "en": "226K+ rules, all adapted, but large number of rules"
+      },
+      "details": {
+        "zh-CN": "AdBlock的DNS规则，规则数量庞大但全部适配。",
+        "en": "AdBlock DNS rules, large number of rules but all adapted."
+      },
+      "author": "217heidai",
+      "homepage": "https://github.com/217heidai/adblockfilters",
+      "downloadUrls": {
+        "GitHub": "https://raw.githubusercontent.com/217heidai/adblockfilters/main/rules/adblockdns.txt",
+        "jsdelivr": "https://gcore.jsdelivr.net/gh/217heidai/adblockfilters@main/rules/adblockdns.txt"
+      }
+    }
+  ]
+}

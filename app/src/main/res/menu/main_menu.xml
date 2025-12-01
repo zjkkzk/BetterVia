@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/menu_update_settings"
+        android:title="@string/update_settings" />
+    <item
+        android:id="@+id/menu_toggle_icon"
+        android:title="@string/hide_icon" />
+    <item
+        android:id="@+id/menu_withdraw_agreement"
+        android:title="@string/withdraw_agreement" />
+    <item
+        android:id="@+id/menu_security_fix"
+        android:title="@string/security_fix" />
+    <item
+        android:id="@+id/menu_exit"
+        android:title="@string/exit" />
+</menu>

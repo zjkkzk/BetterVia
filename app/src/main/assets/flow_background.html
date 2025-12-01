@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home Background</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #ffffff;
+        }
+        
+        .fluid-background {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(
+                120deg,
+                rgba(255, 255, 255, 0.9) 0%,
+                rgba(238, 245, 255, 0.75) 25%,   /* 淡蓝色 (强度0.3) */
+                rgba(255, 238, 245, 0.75) 50%,   /* 淡红色 (强度0.3) */
+                rgba(255, 255, 238, 0.75) 75%,   /* 淡黄色 (强度0.3) */
+                rgba(255, 255, 255, 0.9) 100%
+            );
+            background-size: 400% 400%;
+            animation: 
+                initialWhite 3s ease-in-out, 
+                fluidAnimation 20s ease-in-out 3s infinite;
+            z-index: 1;
+        }
+        
+        .fluid-background::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(
+                60deg,
+                rgba(240, 248, 255, 0.8) 0%,     /* 淡蓝色 */
+                rgba(255, 240, 248, 0.8) 33%,    /* 淡红色 */
+                rgba(255, 255, 240, 0.8) 66%,    /* 淡黄色 */
+                rgba(252, 252, 252, 0.8) 100%
+            );
+            background-size: 400% 400%;
+            animation: fluidAnimationReverse 25s ease-in-out 3s infinite;
+            z-index: 2;
+            mix-blend-mode: overlay;
+            opacity: 0.6;
+        }
+        
+        .fluid-background::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(
+                circle at 30% 50%,
+                rgba(255, 255, 255, 0.4) 0%,
+                rgba(255, 255, 255, 0) 50%
+            );
+            z-index: 3;
+            animation: pulse 15s ease-in-out 3s infinite;
+        }
+        
+        /* 白色开场动画 */
+        @keyframes initialWhite {
+            0%, 100% {
+                background-position: 0% 50%;
+                opacity: 1;
+            }
+        }
+        
+        @keyframes fluidAnimation {
+            0% {
+                background-position: 0% 50%;
+            }
+            25% {
+                background-position: 50% 100%;
+            }
+            50% {
+                background-position: 100% 50%;
+            }
+            75% {
+                background-position: 50% 0%;
+            }
+            100% {
+                background-position: 0% 50%;
+            }
+        }
+        
+        @keyframes fluidAnimationReverse {
+            0% {
+                background-position: 100% 50%;
+            }
+            25% {
+                background-position: 50% 0%;
+            }
+            50% {
+                background-position: 0% 50%;
+            }
+            75% {
+                background-position: 50% 100%;
+            }
+            100% {
+                background-position: 100% 50%;
+            }
+        }
+        
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+                opacity: 0.4;
+            }
+            50% {
+                transform: scale(1.1);
+                opacity: 0.7;
+            }
+        }
+        
+        /* 蜘蛛网Canvas样式 */
+        #spiderWebCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 4;
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+        }
+        
+        #spiderWebCanvas.active {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="fluid-background"></div>
+    <canvas id="spiderWebCanvas"></canvas>
+
+    <script>
+        // 等待页面加载完成后执行
+        window.addEventListener('load', function() {
+            const canvas = document.getElementById('spiderWebCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            // 设置Canvas尺寸为窗口大小
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            
+            // 蜘蛛网参数 - 修改点数和线条粗细
+            const config = {
+                zIndex: 4,
+                opacity: 0.5,
+                color: '0,0,0', // 黑色
+                count: 40,      // 点的数量减少到40（原来是80）
+                spreadSpeed: 5  // 散开速度
+            };
+            
+            // 点类
+            class Dot {
+                constructor(x, y, xa, ya, max) {
+                    this.x = x;
+                    this.y = y;
+                    this.xa = xa; // x轴加速度
+                    this.ya = ya; // y轴加速度
+                    this.max = max; // 最大连线距离
+                }
+            }
+            
+            // 初始化点
+            let dots = [];
+            let centerX = canvas.width / 2;
+            let centerY = canvas.height / 2;
+            let spreadComplete = false; // 标记是否已完成散开
+            
+            // 初始化所有点集中在中心
+            function initDots() {
+                dots = [];
+                for (let i = 0; i < config.count; i++) {
+                    // 所有点初始位置在中心
+                    dots.push(new Dot(
+                        centerX, 
+                        centerY, 
+                        0, 
+                        0, 
+                        6000
+                    ));
+                }
+            }
+            
+            // 散开所有点
+            function spreadDots() {
+                for (let i = 0; i < dots.length; i++) {
+                    // 随机角度和速度
+                    let angle = Math.random() * Math.PI * 2;
+                    let speed = Math.random() * config.spreadSpeed + 1;
+                    
+                    // 计算x和y方向的速度
+                    dots[i].xa = Math.cos(angle) * speed;
+                    dots[i].ya = Math.sin(angle) * speed;
+                }
+                spreadComplete = true;
+            }
+            
+            // 绘制蜘蛛网
+            function draw() {
+                // 清除画布
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                // 更新点位置
+                for (let i = 0; i < dots.length; i++) {
+                    let dot = dots[i];
+                    
+                    // 如果散开完成，则添加随机移动
+                    if (spreadComplete) {
+                        // 随机改变方向
+                        if (Math.random() < 0.02) {
+                            dot.xa += (Math.random() - 0.5) * 0.2;
+                            dot.ya += (Math.random() - 0.5) * 0.2;
+                        }
+                        
+                        // 限制最大速度
+                        let speed = Math.sqrt(dot.xa * dot.xa + dot.ya * dot.ya);
+                        if (speed > 2) {
+                            dot.xa = (dot.xa / speed) * 2;
+                            dot.ya = (dot.ya / speed) * 2;
+                        }
+                    }
+                    
+                    // 更新位置
+                    dot.x += dot.xa;
+                    dot.y += dot.ya;
+                    
+                    // 边界检测
+                    if (dot.x > canvas.width || dot.x < 0) {
+                        dot.xa = -dot.xa;
+                    }
+                    if (dot.y > canvas.height || dot.y < 0) {
+                        dot.ya = -dot.ya;
+                    }
+                    
+                    // 绘制点
+                    ctx.fillStyle = `rgba(${config.color}, 0.5)`;
+                    ctx.fillRect(dot.x - 0.5, dot.y - 0.5, 1, 1);
+                    
+                    // 绘制连线 - 修改线条粗细为0.3（原来是0.2）
+                    for (let j = i + 1; j < dots.length; j++) {
+                        let nextDot = dots[j];
+                        let dx = dot.x - nextDot.x;
+                        let dy = dot.y - nextDot.y;
+                        let distance = dx * dx + dy * dy;
+                        
+                        if (distance < nextDot.max) {
+                            let opacity = 1 - distance / nextDot.max;
+                            ctx.beginPath();
+                            ctx.lineWidth = 0.3; // 线条粗细从0.2调整到0.3
+                            ctx.strokeStyle = `rgba(${config.color}, ${opacity * 0.5})`;
+                            ctx.moveTo(dot.x, dot.y);
+                            ctx.lineTo(nextDot.x, nextDot.y);
+                            ctx.stroke();
+                        }
+                    }
+                }
+                
+                // 继续动画
+                requestAnimationFrame(draw);
+            }
+            
+            // 初始化
+            initDots();
+            
+            // 2秒后显示蜘蛛网并散开（原来是3秒）
+            setTimeout(() => {
+                canvas.classList.add('active');
+                spreadDots();
+            }, 2000); // 延迟时间从3000毫秒改为2000毫秒
+            
+            // 开始绘制
+            draw();
+            
+            // 窗口大小改变时重置Canvas
+            window.addEventListener('resize', function() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+                centerX = canvas.width / 2;
+                centerY = canvas.height / 2;
+                initDots();
+            });
+        });
+    </script>
+</body>
+</html>

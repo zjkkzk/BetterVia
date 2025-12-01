@@ -1,9 +1,9 @@
 {
   "versionName": "1.1.0",
   "updateLog": {
-    "en": "1. \n2. \n3. ",
-    "zh-CN": "",
-    "zh-TW": ""
+    "en": "1. Fixed crashes occurring on certain device models\n2. Added Cookie Manager\n3. Implemented internal update detection for Via\n4. Enhanced features including homepage themes, script repository, and ad removal",
+    "zh-CN": "1. 修复了在某些机型上导致崩溃的问题\n2. 新增了Cookie 管理器\n3. 添加了Via内部更新检测功能\n4. 完善了主页主题、脚本仓库、广告走开等一系列功能",
+    "zh-TW": "1. 修復了在某些機型上導致崩潰的問題\n2. 新增了Cookie 管理器\n3. 添加了Via內部更新檢測功能\n4. 完善了主頁主題、腳本倉庫、廣告走開等一系列功能"
   },
   "apkUrl": ""
 }

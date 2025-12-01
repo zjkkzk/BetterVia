@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="20dp">
+
+    <!-- 自动检查更新设置项 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingVertical="12dp">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/auto_check_updates"
+            android:textSize="16sp"
+            android:textColor="@color/black" />
+
+        <Switch
+            android:id="@+id/auto_update_switch"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:checked="true" />
+
+    </LinearLayout>
+
+    <!-- 分隔线 -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/gray"
+        android:layout_marginVertical="8dp" />
+
+    <!-- 更新源选择标题 -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/select_update_source"
+        android:textSize="14sp"
+        android:textColor="#666666"
+        android:textStyle="bold"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="12dp" />
+
+    <!-- 更新源选择 - 修复单选问题 -->
+    <RadioGroup
+        android:id="@+id/update_source_group"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="@drawable/radio_group_background"
+        android:padding="8dp">
+
+        <!-- GitHub 选项 -->
+        <LinearLayout
+            android:id="@+id/github_option_container"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:padding="12dp"
+            android:background="?android:attr/selectableItemBackground">
+
+            <RadioButton
+                android:id="@+id/github_radio"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="12dp"
+                android:clickable="false"
+                android:focusable="false" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/github"
+                android:textSize="16sp"
+                android:textColor="@color/black" />
+
+        </LinearLayout>
+
+        <!-- 选项分隔线 -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/gray"
+            android:layout_marginStart="16dp"
+            android:layout_marginEnd="16dp" />
+
+        <!-- Gitee 选项 -->
+        <LinearLayout
+            android:id="@+id/gitee_option_container"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:padding="12dp"
+            android:background="?android:attr/selectableItemBackground">
+
+            <RadioButton
+                android:id="@+id/gitee_radio"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="12dp"
+                android:clickable="false"
+                android:focusable="false" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/gitee"
+                android:textSize="16sp"
+                android:textColor="@color/black" />
+
+        </LinearLayout>
+
+    </RadioGroup>
+
+    <!-- 说明文本 -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/update_source_description"
+        android:textSize="12sp"
+        android:textColor="#888888"
+        android:layout_marginTop="12dp"
+        android:padding="8dp" />
+
+</LinearLayout>
