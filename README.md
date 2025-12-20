@@ -43,7 +43,7 @@
     <img src="http://socialify.git.ci/JiGuroLGC/BetterVia/image?custom_language=Java&description=1&font=Inter&language=1&name=1&owner=1&pattern=Circuit+Board&theme=Auto" 
          style="max-width: 800px; height: auto; display: block;">
 </a>
-
+</p>
 
 **BetterVia** 是一款针对浏览器Via进行优化的模块，旨在使软件的使用更加轻快便捷。
 
@@ -51,6 +51,7 @@
 <a href="https://github.com/JiGuroLGC/BetterVia">
     <img src="https://raw.githubusercontent.com/JiGuroLGC/BetterVia/main/img/main.png" width="315" height="660">
 </a>
+
 <a href="https://github.com/JiGuroLGC/BetterVia">
     <img src="https://raw.githubusercontent.com/JiGuroLGC/BetterVia/main/img/info.png" width="315" height="660">
 </a>
@@ -112,73 +113,103 @@
 
 未完待续……
 
-![设置界面](https://raw.githubusercontent.com/JiGuroLGC/BetterVia/main/img/settings.png)
+<p align="center">
+<a href="https://github.com/JiGuroLGC/BetterVia">
+    <img src="https://raw.githubusercontent.com/JiGuroLGC/BetterVia/main/img/settings.png" width="315" height="660">
+</a>
+</p>
+<div align="center">设置界面</div>
 
+<p align="center">
 <a href="https://github.com/JiGuroLGC/BetterVia">
     <img src="https://raw.githubusercontent.com/JiGuroLGC/BetterVia/main/img/settings2.png" width="315" height="660">
-         <p style="text-align: center; color: #666; font-size: 0.9em; margin-bottom: 10px;">设置界面(续)</p>
 </a>
+</p>
+<div align="center">设置界面(续)</div>
 
+<p align="center">
 <a href="https://github.com/JiGuroLGC/BetterVia">
     <img src="https://raw.githubusercontent.com/JiGuroLGC/BetterVia/main/img/theme.png" width="315" height="660">
-         <p style="text-align: center; color: #666; font-size: 0.9em; margin-bottom: 10px;">主题浏览</p>
 </a>
+</p>
+<div align="center">主题浏览</div>
 
+<p align="center">
 <a href="https://github.com/JiGuroLGC/BetterVia">
     <img src="https://raw.githubusercontent.com/JiGuroLGC/BetterVia/main/img/editer.png" width="315" height="660">
-         <p style="text-align: center; color: #666; font-size: 0.9em; margin-bottom: 10px;">主题编辑器</p>
 </a>
+</p>
+<div align="center">主题编辑器</div>
 
+<p align="center">
 <a href="https://github.com/JiGuroLGC/BetterVia">
     <img src="https://raw.githubusercontent.com/JiGuroLGC/BetterVia/main/img/script.png" width="315" height="660">
-         <p style="text-align: center; color: #666; font-size: 0.9em; margin-bottom: 10px;">脚本大全</p>
 </a>
+</p>
+<div align="center">脚本大全</div>
 
+<p align="center">
 <a href="https://github.com/JiGuroLGC/BetterVia">
     <img src="https://raw.githubusercontent.com/JiGuroLGC/BetterVia/main/img/adrule.png" width="315" height="660">
-         <p style="text-align: center; color: #666; font-size: 0.9em; margin-bottom: 10px;">广告规则</p>
 </a>
+</p>
+<div align="center">广告规则</div>
 
+<p align="center">
 <a href="https://github.com/JiGuroLGC/BetterVia">
     <img src="https://raw.githubusercontent.com/JiGuroLGC/BetterVia/main/img/cookie.png" width="315" height="660">
-         <p style="text-align: center; color: #666; font-size: 0.9em; margin-bottom: 10px;">Cookie管理器</p>
 </a>
+</p>
+<div align="center">Cookie管理器</div>
 
+<p align="center">
 <a href="https://github.com/JiGuroLGC/BetterVia">
     <img src="https://raw.githubusercontent.com/JiGuroLGC/BetterVia/main/img/cookieinfo.png" width="315" height="660">
-         <p style="text-align: center; color: #666; font-size: 0.9em; margin-bottom: 10px;">Cookie详情</p>
 </a>
+</p>
+<div align="center">Cookie详情</div>
 
+<p align="center">
 <a href="https://github.com/JiGuroLGC/BetterVia">
     <img src="https://raw.githubusercontent.com/JiGuroLGC/BetterVia/main/img/eye.png" width="315" height="660">
-         <p style="text-align: center; color: #666; font-size: 0.9em; margin-bottom: 10px;">护眼设置</p>
 </a>
+</p>
+<div align="center">护眼设置</div>
 
+<p align="center">
 <a href="https://github.com/JiGuroLGC/BetterVia">
     <img src="https://raw.githubusercontent.com/JiGuroLGC/BetterVia/main/img/block.png" width="315" height="660">
-         <p style="text-align: center; color: #666; font-size: 0.9em; margin-bottom: 10px;">屏蔽设置</p>
-
 </a>
+</p>
+<div align="center">屏蔽设置</div>
 
+<p align="center">
 <a href="https://github.com/JiGuroLGC/BetterVia">
     <img src="https://raw.githubusercontent.com/JiGuroLGC/BetterVia/main/img/beautify.png" width="315" height="660">
-         <p style="text-align: center; color: #666; font-size: 0.9em; margin-bottom: 10px;">美化设置</p>
 </a>
+</p>
+<div align="center">美化设置</div>
 
+<p align="center">
 <a href="https://github.com/JiGuroLGC/BetterVia">
     <img src="https://raw.githubusercontent.com/JiGuroLGC/BetterVia/main/img/source.png" width="315" height="660">
-         <p style="text-align: center; color: #666; font-size: 0.9em; margin-bottom: 10px;">美化效果</p>
 </a>
+</p>
+<div align="center">美化效果</div>
 
+<p align="center">
 <a href="https://github.com/JiGuroLGC/BetterVia">
     <img src="https://raw.githubusercontent.com/JiGuroLGC/BetterVia/main/img/cmd.png" width="315" height="660">
-         <p style="text-align: center; color: #666; font-size: 0.9em; margin-bottom: 10px;"快捷命令</p>
 </a>
+</p>
+<div align="center">快捷命令</div>
 
+<p align="center">
 <a href="https://github.com/JiGuroLGC/BetterVia">
     <img src="https://raw.githubusercontent.com/JiGuroLGC/BetterVia/main/img/ua.png" width="315" height="660">
-         <p style="text-align: center; color: #666; font-size: 0.9em; margin-bottom: 10px;">UA大全</p>
 </a>
+</p>
+<div align="center">UA大全</div>
 
 ## 开始使用
 
