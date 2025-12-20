@@ -49,12 +49,12 @@
 
 <a href="https://github.com/JiGuroLGC/BetterVia">
     <img src="https://raw.githubusercontent.com/JiGuroLGC/BetterVia/main/img/main.png" 
-         style="max-width: 400px; height: auto; display: block;">
+         style="max-width: 200px; height: auto; display: block;">
 </a>
 
 <a href="https://github.com/JiGuroLGC/BetterVia">
     <img src="https://raw.githubusercontent.com/JiGuroLGC/BetterVia/main/img/info.png" 
-         style="max-width: 400px; height: auto; display: block;">
+         style="max-width: 200px; height: auto; display: block;">
 </a>
 
 ## 说明
