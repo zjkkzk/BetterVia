@@ -40,8 +40,7 @@
 
 <p align="center">
 <a href="https://github.com/JiGuroLGC/BetterVia">
-    <img src="http://socialify.git.ci/JiGuroLGC/BetterVia/image?custom_language=Java&description=1&font=Inter&language=1&name=1&owner=1&pattern=Circuit+Board&theme=Auto" 
-         style="max-width: 800px; height: auto; display: block;">
+    <img src="http://socialify.git.ci/JiGuroLGC/BetterVia/image?custom_language=Java&description=1&font=Inter&language=1&name=1&owner=1&pattern=Circuit+Board&theme=Auto" width="660" height="300">
 </a>
 </p>
 
@@ -91,7 +90,7 @@
 
 ## 详细适配
 
-<img src="https://raw.githubusercontent.com/JiGuroLGC/BetterVia/main/img/icon.png" width = "70" height = "70" alt="LOGO"/>
+<img src="https://raw.githubusercontent.com/JiGuroLGC/BetterVia/main/img/icon.png" width = "100" height = "100" alt="LOGO"/>
 
 **Via** ( **mark.via** / **mark.via.gp** )  
 *支持V6.8.0版本*  
@@ -127,6 +126,11 @@
 </a>
 </p>
 <div align="center">设置界面(续)</div>
+
+<br>
+
+> [!WARNING]
+> 模块设置中的“开启实验模式”只针对于开发者使用，开启后可能会限制某些功能，如果开启后出现问题，请关闭该功能
 
 <br>
 
@@ -305,13 +309,14 @@
 您触发了 **BetterVia** 的完整性校验。为了防止不法分子二改软件，我们设置了低强度的完整性校验，包括签名校验和其他校验。如果您触发了完整性校验，那么您应意识到您极大可能下载的是盗版软件。由于某些未知问题，如果在更新时触发，那么您只需清空软件的所有存储，再次打开软件尝试即可。
 在新版本中，我们引入了"安全修复"模式。您只需授予模块 Root 或文件读取权限，并在主页的菜单中找到"安全修复"选项，点击即可解除限制。
 
+<p align="center">
 <a href="https://github.com/JiGuroLGC/BetterVia">
     <img src="https://raw.githubusercontent.com/JiGuroLGC/BetterVia/main/img/menu.png" width="315" height="660">
 </a>
-
 <a href="https://github.com/JiGuroLGC/BetterVia">
     <img src="https://raw.githubusercontent.com/JiGuroLGC/BetterVia/main/img/fix.png" width="315" height="660">
 </a>
+</p>
 
 ### 问题四
 <font color="red">为何在使用一些免 Root 框架时， 模块功能可能失效甚至作用域软件闪退？</font>
@@ -362,7 +367,7 @@
 我们希望成为一个优秀的开发团队，持续为大家输出优秀的作品，如果您有什么改进意见，请您直接提出来，我们会继续加油。让我们在追梦的道路上不懈奋斗、砥砺前行！感谢大家的帮助与支持！
 
 <a href="https://github.com/JiGuroLGC/BetterVia">
-    <img src="https://raw.githubusercontent.com/JiGuroLGC/BetterVia/main/img/reward.png" width="300" height="300">
+    <img src="https://raw.githubusercontent.com/JiGuroLGC/BetterVia/main/img/reward.png" width="400" height="400">
 </a>
 
 版权所有 © 2025 JiGuro
