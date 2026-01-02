@@ -12,7 +12,7 @@
     <img src="https://img.shields.io/github/repo-size/JiGuroLGC/BetterVia" height="20" alt="repo-size">
   </a>
   <a href="https://github.com/JiGuroLGC/BetterVia">
-    <img src="https://img.shields.io/static/v1.svg?label=Contributions&message=Welcome&color=0059b3" height="20" alt="Contributions Welcome">
+    <img src="https://img.shields.io/github/downloads/JiGuroLGC/BetterVia/total" height="20" alt="Contributions Welcome">
   </a>
   <a href="https://github.com/JiGuroLGC/BetterVia/releases">
     <img src="https://img.shields.io/badge/download-lastest_now-white?branch=master&color=FF90E8" height="20" alt="download">
