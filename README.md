@@ -4,28 +4,26 @@
   <h1>BetterVia</h1>
   <h3>让Via变得更好</h3>
 
-  <a href="https://github.com/JiGuroLGC/BetterVia/stargazers">
-  <img alt="GitHub stars" src="https://img.shields.io/github/stars/JiGuroLGC/BetterVia?label=stars">
+
+  <a href="https://github.com/JiGuroLGC/BetterVia/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/JiGuroLGC/BetterVia?label=stars"></a>
+  <a href="https://github.com/JiGuroLGC/BetterVia">
+    <img src="https://img.shields.io/github/downloads/Xposed-Modules-Repo/com.jiguro.bettervia/total?color=0000CD" height="20" alt="download-num">
   </a>
   <a href="https://github.com/JiGuroLGC/BetterVia">
-  <img src="https://img.shields.io/github/downloads/Xposed-Modules-Repo/com.jiguro.bettervia/total?color=0000CD" height="20" alt="pre-commit">
-  </a>
-  <a href="https://github.com/JiGuroLGC/BetterVia">
-  <img src="https://img.shields.io/github/repo-size/JiGuroLGC/BetterVia" height="20" alt="repo-size">
+    <img src="https://img.shields.io/github/repo-size/JiGuroLGC/BetterVia" height="20" alt="repo-size">
   </a>
   <a href="https://github.com/pre-commit/pre-commit">
-  <img src="https://img.shields.io/badge/pre--commit-open-brightgreen?logo=pre-commit&logoColor=white" height="20" alt="pre-commit">
+    <img src="https://img.shields.io/badge/pre--commit-open-brightgreen?logo=pre-commit&logoColor=white" height="20" alt="pre-commit">
   </a>
-  <a href="https://github.com/JiGuroLGC/BetterVia">
-  <img src="https://img.shields.io/badge/download-lastest_now-white?branch=master&color=FF90E8" height="20" alt="download">
+  <a href="https://github.com/JiGuroLGC/BetterVia/releases">
+    <img src="https://img.shields.io/badge/download-lastest_now-white?branch=master&color=FF90E8" height="20" alt="download">
   </a>
   <a href="https://jigurolgc.github.io">
-  <img alt="Page_Online" src="https://img.shields.io/badge/blog-online-white?branch=master&color=25A162">
+    <img alt="Page_Online" src="https://img.shields.io/badge/blog-online-white?branch=master&color=25A162">
   </a>
-  <a href="https://github.com/JiGuroLGC/BetterVia">
-  <img src="https://img.shields.io/badge/Github-BetterVia-yellow.svg" alt="socialify"/>
-  </a>
-
+     <a href="https://github.com/JiGuroLGC/BetterVia">
+        <img src="https://img.shields.io/badge/Github-BetterVia-yellow.svg" alt="socialify"/>
+    </a>
 
 <p>
    <b>支持框架 | <a href="https://github.com/LSPosed/LSPosed">LSPosed</a> | <a href="https://github.com/LSPosed/LSPatch">LSPatch</a>
