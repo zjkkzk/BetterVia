@@ -1,9 +1,9 @@
 {
-  "versionName": "1.2.0",
+  "versionName": "1.3.0",
   "updateLog": {
-    "en": "1. Fixed crashes occurring on certain device models\n2. Added a Cookie manager and beautified the resource interface for Via\n4. Enhanced features including homepage themes, script repository, and ad removal",
-    "zh-CN": "1. 修复了在某些机型上导致崩溃的问题\n2. 新增了Cookie 管理器和资源界面美化\n3. 添加了Via内部更新检测功能\n4. 完善了主页主题、脚本仓库、广告走开等一系列功能",
-    "zh-TW": "1. 修復了在某些機型上導致崩潰的問題\n2. 新增了Cookie 管理器和資源界面美化\n3. 添加了Via內部更新檢測功能\n4. 完善了主頁主題、腳本倉庫、廣告走開等一系列功能"
+    "en": "1. Support Via new version 6.9.0, add version check\n2. Further fixes for crashes on some devices\n3. Added download sharing function and gleaning collection interface\n4. Updated the UI of Cookie Manager and added domain name view\n5. Removed some unnecessary functions to enhance user experience\n6. Happy New Year! There are easter eggs when opening the About interface",
+    "zh-CN": "1. 支持Via新版6.9.0，添加版本检查\n2. 进一步修复了在某些机型上导致崩溃的问题\n3. 新增了下载分享功能和拾穗收集界面\n4. 更新了Cookie管理器的UI，新增域名视图\n5. 移除了一些不必要的功能，增强用户体验\n6. 新年快乐！打开关于界面有彩蛋",
+    "zh-TW": "1. 支持Via新版6.9.0，添加版本檢查\n2. 進一步修復了在某些機型上導致崩潰的問題\n3. 新增了下載分享功能和拾穗收集界面\n4. 更新了Cookie管理器的UI，新增域名視圖\n5. 移除了一些不必要的功能，增強用戶體驗\n6. 新年快樂！打開關於界面有彩蛋"
   },
-  "apkUrl": "https://github.com/JiGuroLGC/BetterVia/releases/download/20251202_1.2.0/BetterVia_1.2.0.apk"
+  "apkUrl": "https://github.com/JiGuroLGC/BetterVia/releases/download/20260101_1.3.0/BetterVia_1.3.0.apk"
 }

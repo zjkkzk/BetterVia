@@ -1,7 +1,9 @@
 package com.jiguro.bettervia;
 
+import android.animation.*;
 import android.app.*;
 import android.content.*;
+import android.content.pm.*;
 import android.content.res.*;
 import android.database.*;
 import android.database.sqlite.*;
@@ -10,8 +12,12 @@ import android.graphics.drawable.*;
 import android.net.*;
 import android.os.*;
 import android.text.*;
+import android.text.method.*;
+import android.text.style.*;
 import android.util.*;
 import android.view.*;
+import android.view.animation.*;
+import android.webkit.*;
 import android.widget.*;
 import de.robv.android.xposed.*;
 import de.robv.android.xposed.callbacks.*;
@@ -26,8 +32,9 @@ import android.content.ClipboardManager;
 public class Hook implements IXposedHookLoadPackage {
 
 	/* ================== 模块基本信息 ================== */
-	private static final String MODULE_VERSION_NAME = "1.2.0";
-	private static final int MODULE_VERSION_CODE = 20251202;
+	private static final String MODULE_VERSION_NAME = "1.3.0";
+	private static final int MODULE_VERSION_CODE = 20260101;
+	private static final String SUPPORTED_VIA_VERSION = "6.9.0";
 
 	/* ================== 上下文和组件引用 ================== */
 	private static Activity Context = null; // 主界面 Activity
@@ -40,6 +47,7 @@ public class Hook implements IXposedHookLoadPackage {
 	private static final String KEY_COMPONENT_BLOCK = "component_block_settings";
 	private static final String KEY_BLOCK_STARTUP_MESSAGE = "block_startup_message";
 	private static final String KEY_BLOCK_GOOGLE_SERVICES = "block_google_services";
+	private static final String KEY_DOWNLOAD_DIALOG_SHARE = "download_dialog_share";
 
 	// 界面美化功能
 	private static final String KEY_EYE_PROTECTION = "eye_protection_mode";
@@ -64,11 +72,13 @@ public class Hook implements IXposedHookLoadPackage {
 
 	// 其他
 	private static final String KEY_USER_AGENT = "user_agent_settings";
+	private static final String KEY_BACKGROUND_VIDEO = "background_video_audio";
+	private static final String KEY_VERSION_CHECK = "version_check_settings";
+	private static final String KEY_VERSION_CHECK_DISABLED = "version_check_disabled";
 
 	/* ================== 运行时状态缓存 ================== */
 	// 功能开关状态
 	private static boolean whitelistHookEnabled = true;
-	private static boolean bHookEnabled = false;
 	private static boolean eyeProtectionEnabled = false;
 	private static boolean blockGoogleServicesEnabled = false;
 	private static boolean blockStartupMessageEnabled = false;
@@ -76,6 +86,7 @@ public class Hook implements IXposedHookLoadPackage {
 	private static boolean keepScreenOnEnabled = false;
 	private static boolean hideStatusBarEnabled = false;
 	private static boolean autoUpdateEnabled = true;
+	private static boolean downloadDialogShareEnabled = false;
 
 	// 配置参数
 	private static int eyeTemperature = 50;
@@ -83,6 +94,9 @@ public class Hook implements IXposedHookLoadPackage {
 	private static String homepageBgPath = "";
 	private static int homepageMaskAlpha = 120;
 	private static int homepageMaskColor = 0x80000000;
+
+	// 后台听视频状态
+	private static boolean backgroundVideoEnabled = false;
 
 	/* ================== Hook 引用管理 ================== */
 	private static XC_MethodHook.Unhook whitelistHook = null;
@@ -94,6 +108,8 @@ public class Hook implements IXposedHookLoadPackage {
 	private static XC_MethodHook.Unhook screenshotProtectionHook = null;
 	private static XC_MethodHook.Unhook keepScreenOnHook = null;
 	private static XC_MethodHook.Unhook hideStatusBarHook = null;
+	private static XC_MethodHook.Unhook downloadDialogShareHook = null;
+	private static XC_MethodHook.Unhook backgroundVideoHook = null;
 
 	/* ================== 组件屏蔽配置 ================== */
 	private static final String[] COMPONENT_KEYS = {"block_update", // 0: 检查更新
@@ -120,6 +136,10 @@ public class Hook implements IXposedHookLoadPackage {
 	private static final String GITHUB_UPDATE_URL = "https://raw.githubusercontent.com/JiGuroLGC/BetterVia/main/update.json";
 	private static final String GITEE_UPDATE_URL = "https://gitee.com/JiGuro/BetterVia/raw/master/update.json";
 
+	// 拾穗功能URL
+	private static final String GITEE_SHISUI_JSON_URL = "https://gitee.com/JiGuro/BetterVia/raw/master/shisui.json";
+	private static final String GITHUB_SHISUI_JSON_URL = "https://raw.githubusercontent.com/JiGuroLGC/BetterVia/main/shisui.json";
+
 	/* ================== 数据缓存和状态管理 ================== */
 	// 主题数据
 	private static List<ThemeInfo> loadedThemes = new ArrayList<>();
@@ -140,11 +160,11 @@ public class Hook implements IXposedHookLoadPackage {
 	// 主题数据结构
 	private static class ThemeInfo {
 		String id;
-		Map<String, String> nameMap;
-		Map<String, String> authorMap;
+		Map<String, String> nameMap; // 语言代码 -> 名称
+		Map<String, String> authorMap; // 语言代码 -> 作者
 		String previewUrl;
-		Map<String, String> htmlUrls;
-		Map<String, String> cssUrls;
+		Map<String, String> htmlUrls; // 包名 -> HTML URL
+		Map<String, String> cssUrls; // 包名 -> CSS URL
 
 		ThemeInfo(String id, Map<String, String> nameMap, Map<String, String> authorMap, String previewUrl,
 				Map<String, String> htmlUrls, Map<String, String> cssUrls) {
@@ -168,7 +188,7 @@ public class Hook implements IXposedHookLoadPackage {
 			return authorMap.getOrDefault(langCode, authorMap.get("zh-CN"));
 		}
 
-		// 添加JSON构造函数
+		// JSON构造函数
 		static ThemeInfo fromJSON(JSONObject json) throws JSONException {
 			String id = json.getString("id");
 
@@ -213,7 +233,7 @@ public class Hook implements IXposedHookLoadPackage {
 			return new ThemeInfo(id, nameMap, authorMap, previewUrl, htmlUrls, cssUrls);
 		}
 
-		// 获取当前语言代码
+		// 获取当前语言代码 - 移动到ThemeInfo内部
 		private String getLanguageCode(Context ctx) {
 			String saved = getSavedLanguageStatic(ctx);
 			if ("auto".equals(saved)) {
@@ -283,11 +303,13 @@ public class Hook implements IXposedHookLoadPackage {
 						protected void afterHookedMethod(MethodHookParam param) throws Throwable {
 							if (Context == null) {
 								Context = (Activity) param.thisObject;
+								// 检查Via版本
+								checkViaVersion(ctx);
 								// 只有在未屏蔽启动提示时才显示消息
 								if (!getPrefBoolean(ctx, KEY_BLOCK_STARTUP_MESSAGE, false)) {
 									jiguroMessage(getLocalizedString(ctx, "hook_success_message"));
 								}
-								XposedBridge.log("得到 ActivityContext");
+								XposedBridge.log("[BetterVia] 初加载成功，得到Via活动上下文");
 							}
 						}
 					});
@@ -304,10 +326,6 @@ public class Hook implements IXposedHookLoadPackage {
 				// 白名单功能初始化
 				whitelistHookEnabled = getPrefBoolean(ctx, KEY_WHITELIST, true);
 				setWhitelistHook(ctx, cl, whitelistHookEnabled);
-
-				// b方法Hook初始化
-				bHookEnabled = getPrefBoolean(ctx, KEY_B_HOOK, false);
-				setBHook(ctx, cl, bHookEnabled);
 
 				// 组件屏蔽Hook初始化
 				setComponentBlockHook(ctx, cl, true);
@@ -336,6 +354,12 @@ public class Hook implements IXposedHookLoadPackage {
 				boolean blockGoogleServices = getPrefBoolean(ctx, KEY_BLOCK_GOOGLE_SERVICES, false);
 				setGoogleServicesInterceptHook(ctx, cl, blockGoogleServices);
 
+				// 读取下载对话框分享设置
+				downloadDialogShareEnabled = getPrefBoolean(ctx, KEY_DOWNLOAD_DIALOG_SHARE, false);
+				if (downloadDialogShareEnabled) {
+					setDownloadDialogShareHook(ctx, cl, true);
+				}
+
 				// 自动更新检查
 				autoUpdateEnabled = getPrefBoolean(ctx, KEY_AUTO_UPDATE, true);
 				if (autoUpdateEnabled) {
@@ -346,11 +370,11 @@ public class Hook implements IXposedHookLoadPackage {
 
 				// 清空u方法逻辑（白名单功能）
 				if (whitelistHookEnabled) {
-					XposedHelpers.findAndHookMethod("k.a.a0.i.k", cl, "u", "k.a.a0.i.a", new XC_MethodHook() {
+					XposedHelpers.findAndHookMethod("k.a.c0.i.k", cl, "u", "k.a.c0.i.a", new XC_MethodHook() {
 						@Override
 						protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
 							param.setResult(null);
-							XposedBridge.log("已清空 mark.via 的 u 方法逻辑");
+							XposedBridge.log("[BetterVia] 已解除Via白名单限制");
 						}
 					});
 				}
@@ -359,10 +383,14 @@ public class Hook implements IXposedHookLoadPackage {
 				keepScreenOnEnabled = getPrefBoolean(ctx, KEY_KEEP_SCREEN_ON, false);
 				setKeepScreenOn(ctx, cl, keepScreenOnEnabled);
 
+				// 后台听视频功能
+				backgroundVideoEnabled = getPrefBoolean(ctx, KEY_BACKGROUND_VIDEO, false);
+				setBackgroundVideoAudio(ctx, cl, backgroundVideoEnabled);
+
 				/* ================== 界面设置功能 ================== */
 
 				// 设置列表添加"模块"按钮
-				XposedHelpers.findAndHookMethod("k.a.m0.f7", cl, "f3", new XC_MethodHook() {
+				XposedHelpers.findAndHookMethod("k.a.o0.f7", cl, "f3", new XC_MethodHook() {
 					@Override
 					protected void afterHookedMethod(MethodHookParam param) throws Throwable {
 						List<Object> orig = (List<Object>) param.getResult();
@@ -377,7 +405,7 @@ public class Hook implements IXposedHookLoadPackage {
 						nList.add(btn);
 
 						param.setResult(nList);
-						XposedBridge.log("已在 mark.via 设置列表添加模块按钮");
+						XposedBridge.log("[BetterVia] 已在Via设置列表中添加模块按钮");
 					}
 				});
 
@@ -390,7 +418,7 @@ public class Hook implements IXposedHookLoadPackage {
 							return;
 						int id = XposedHelpers.getIntField(clicked, "b");
 						if (id == 1000) {
-							XposedBridge.log("模块按钮被点击");
+							XposedBridge.log("[BetterVia] 模块按钮被点击");
 							showSettingsDialog(ctx);
 						}
 					}
@@ -441,7 +469,7 @@ public class Hook implements IXposedHookLoadPackage {
 	}
 
 	/* =========================================================
-	 * Via GP 版主处理逻辑
+	 * Via GP 版主处理逻辑（与国内版逻辑基本一致）
 	 * ======================================================= */
 	private void handleViaGpApp(final XC_LoadPackage.LoadPackageParam param) {
 		XposedHelpers.findAndHookMethod(Application.class, "attach", Context.class, new XC_MethodHook() {
@@ -463,11 +491,13 @@ public class Hook implements IXposedHookLoadPackage {
 						protected void afterHookedMethod(MethodHookParam param) throws Throwable {
 							if (Context == null) {
 								Context = (Activity) param.thisObject;
+								// 检查Via版本
+								checkViaVersion(ctx);
 								// 只有在未屏蔽启动提示时才显示消息
 								if (!getPrefBoolean(ctx, KEY_BLOCK_STARTUP_MESSAGE, false)) {
 									jiguroMessage(getLocalizedString(ctx, "hook_success_message"));
 								}
-								XposedBridge.log("得到 ActivityContext");
+								XposedBridge.log("[BetterVia] 初加载成功，得到Via活动上下文");
 							}
 						}
 					});
@@ -484,10 +514,6 @@ public class Hook implements IXposedHookLoadPackage {
 				// 白名单功能初始化
 				whitelistHookEnabled = getPrefBoolean(ctx, KEY_WHITELIST, true);
 				setWhitelistHook(ctx, cl, whitelistHookEnabled);
-
-				// b方法Hook初始化
-				bHookEnabled = getPrefBoolean(ctx, KEY_B_HOOK, false);
-				setBHook(ctx, cl, bHookEnabled);
 
 				// 组件屏蔽Hook初始化
 				setComponentBlockHook(ctx, cl, true);
@@ -516,6 +542,12 @@ public class Hook implements IXposedHookLoadPackage {
 				boolean blockGoogleServices = getPrefBoolean(ctx, KEY_BLOCK_GOOGLE_SERVICES, false);
 				setGoogleServicesInterceptHook(ctx, cl, blockGoogleServices);
 
+				// 读取下载对话框分享设置
+				downloadDialogShareEnabled = getPrefBoolean(ctx, KEY_DOWNLOAD_DIALOG_SHARE, false);
+				if (downloadDialogShareEnabled) {
+					setDownloadDialogShareHook(ctx, cl, true);
+				}
+
 				// 自动更新检查
 				autoUpdateEnabled = getPrefBoolean(ctx, KEY_AUTO_UPDATE, true);
 				if (autoUpdateEnabled) {
@@ -526,11 +558,11 @@ public class Hook implements IXposedHookLoadPackage {
 
 				// 清空u方法逻辑（白名单功能）
 				if (whitelistHookEnabled) {
-					XposedHelpers.findAndHookMethod("k.a.a0.i.k", cl, "u", "k.a.a0.i.a", new XC_MethodHook() {
+					XposedHelpers.findAndHookMethod("k.a.c0.i.k", cl, "u", "k.a.c0.i.a", new XC_MethodHook() {
 						@Override
 						protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
 							param.setResult(null);
-							XposedBridge.log("已清空 mark.via.gp 的 u 方法逻辑");
+							XposedBridge.log("[BetterVia] 已解除Via白名单限制");
 						}
 					});
 				}
@@ -539,10 +571,14 @@ public class Hook implements IXposedHookLoadPackage {
 				keepScreenOnEnabled = getPrefBoolean(ctx, KEY_KEEP_SCREEN_ON, false);
 				setKeepScreenOn(ctx, cl, keepScreenOnEnabled);
 
+				// 后台听视频功能
+				backgroundVideoEnabled = getPrefBoolean(ctx, KEY_BACKGROUND_VIDEO, false);
+				setBackgroundVideoAudio(ctx, cl, backgroundVideoEnabled);
+
 				/* ================== 界面设置功能 ================== */
 
 				// 设置列表添加"模块"按钮
-				XposedHelpers.findAndHookMethod("k.a.m0.f7", cl, "f3", new XC_MethodHook() {
+				XposedHelpers.findAndHookMethod("k.a.o0.f7", cl, "f3", new XC_MethodHook() {
 					@Override
 					protected void afterHookedMethod(MethodHookParam param) throws Throwable {
 						List<Object> orig = (List<Object>) param.getResult();
@@ -557,7 +593,7 @@ public class Hook implements IXposedHookLoadPackage {
 						nList.add(btn);
 
 						param.setResult(nList);
-						XposedBridge.log("已在 mark.via.gp 设置列表添加模块按钮");
+						XposedBridge.log("[BetterVia] 已在Via设置列表中添加模块按钮");
 					}
 				});
 
@@ -679,16 +715,6 @@ public class Hook implements IXposedHookLoadPackage {
 							}
 						});
 
-				// 2. b方法开关
-				addSwitch(root, act, getLocalizedString(ctx, "b_hook_switch"), getLocalizedString(ctx, "b_hook_hint"),
-						KEY_B_HOOK, false, new Runnable() {
-							@Override
-							public void run() {
-								boolean on = getPrefBoolean(ctx, KEY_B_HOOK, false);
-								setBHook(ctx, act.getClassLoader(), on);
-							}
-						});
-
 				// 3. Google服务拦截开关
 				addSwitch(root, act, getLocalizedString(ctx, "block_google_switch"),
 						getLocalizedString(ctx, "block_google_hint"), KEY_BLOCK_GOOGLE_SERVICES, false, new Runnable() {
@@ -734,13 +760,34 @@ public class Hook implements IXposedHookLoadPackage {
 							}
 						});
 
-				// 7. 隐藏状态栏开关
+				// 7. 后台听视频开关
+				// addSwitch(root, act, getLocalizedString(ctx, "background_video_switch"),
+				//		getLocalizedString(ctx, "background_video_hint"), KEY_BACKGROUND_VIDEO, false, new Runnable() {
+				//			@Override
+				//			public void run() {
+				//				boolean on = getPrefBoolean(ctx, KEY_BACKGROUND_VIDEO, false);
+				//				setBackgroundVideoAudio(ctx, act.getClassLoader(), on);
+				//			}
+				//		});
+
+				// 8. 隐藏状态栏开关
 				addSwitch(root, act, getLocalizedString(ctx, "hide_status_bar_switch"),
 						getLocalizedString(ctx, "hide_status_bar_hint"), KEY_HIDE_STATUS_BAR, false, new Runnable() {
 							@Override
 							public void run() {
 								boolean on = getPrefBoolean(ctx, KEY_HIDE_STATUS_BAR, false);
 								setHideStatusBar(ctx, act.getClassLoader(), on);
+							}
+						});
+
+				// 下载对话框分享开关
+				addSwitch(root, act, getLocalizedString(ctx, "download_dialog_share_switch"),
+						getLocalizedString(ctx, "download_dialog_share_hint"), KEY_DOWNLOAD_DIALOG_SHARE, false,
+						new Runnable() {
+							@Override
+							public void run() {
+								boolean on = getPrefBoolean(ctx, KEY_DOWNLOAD_DIALOG_SHARE, false);
+								setDownloadDialogShareHook(ctx, act.getClassLoader(), on);
 							}
 						});
 
@@ -929,6 +976,43 @@ public class Hook implements IXposedHookLoadPackage {
 				aboutHintTv.setTextColor(0xFF666666);
 				aboutHintTv.setPadding(0, dp(act, 4), 0, dp(act, 12));
 				root.addView(aboutHintTv);
+
+				/* ================== 拾穗功能区域 ================== */
+				LinearLayout shisuiRow = new LinearLayout(act);
+				shisuiRow.setOrientation(LinearLayout.HORIZONTAL);
+				shisuiRow.setGravity(Gravity.CENTER_VERTICAL);
+
+				TextView shisuiTitle = new TextView(act);
+				shisuiTitle.setText(getLocalizedString(ctx, "shisui_title"));
+				shisuiTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
+				shisuiTitle.setTextColor(Color.BLACK);
+				shisuiRow.addView(shisuiTitle,
+						new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+
+				// 查看按钮
+				TextView shisuiBtn = new TextView(act);
+				shisuiBtn.setText(getLocalizedString(ctx, "shisui_view"));
+				shisuiBtn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+				shisuiBtn.setPadding(dp(act, 12), dp(act, 6), dp(act, 12), dp(act, 6));
+				shisuiBtn.setBackground(getRoundBg(act, 0xFFE0E0E0, 8));
+				shisuiBtn.setTextColor(0xFF000000);
+				shisuiBtn.setOnClickListener(new View.OnClickListener() {
+					@Override
+					public void onClick(View v) {
+						showShisuiDialog(ctx);
+					}
+				});
+				shisuiRow.addView(shisuiBtn);
+
+				root.addView(shisuiRow);
+
+				// 拾穗提示
+				TextView shisuiHintTv = new TextView(act);
+				shisuiHintTv.setText(getLocalizedString(ctx, "shisui_hint"));
+				shisuiHintTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+				shisuiHintTv.setTextColor(0xFF666666);
+				shisuiHintTv.setPadding(0, dp(act, 4), 0, dp(act, 12));
+				root.addView(shisuiHintTv);
 
 				/* ================== 更新设置区域 ================== */
 
@@ -1162,7 +1246,7 @@ public class Hook implements IXposedHookLoadPackage {
 	}
 
 	/* =========================================================
-	 * 组件屏蔽 Hook
+	 * 组件屏蔽 Hook - 以类型常量 b 为 key
 	 * ======================================================= */
 	private void setComponentBlockHook(final Context ctx, ClassLoader cl, boolean on) {
 		if (on) {
@@ -1188,18 +1272,18 @@ public class Hook implements IXposedHookLoadPackage {
 
 								boolean block = getPrefBoolean(ctx, COMPONENT_KEYS[index], false);
 								if (block) {
-									XposedBridge.log("组件屏蔽：阻止类型 " + type + " → " + componentNames[index]);
+									XposedBridge.log("[BetterVia] 组件屏蔽：阻止类型 " + type + " → " + componentNames[index]);
 									param.setResult(false);
 								}
 							}
 						});
-				XposedBridge.log("组件屏蔽 Hook 已启用（按类型常量）");
+				XposedBridge.log("[BetterVia] 组件屏蔽逻辑已启用");
 			}
 		} else {
 			if (componentHook != null) {
 				componentHook.unhook();
 				componentHook = null;
-				XposedBridge.log("组件屏蔽 Hook 已停用");
+				XposedBridge.log("[BetterVia] 组件屏蔽逻辑已停用");
 			}
 		}
 	}
@@ -1217,9 +1301,9 @@ public class Hook implements IXposedHookLoadPackage {
 				return 3; // 邮件
 			case 14 :
 				return 4; // 微信
-			case 7 :
+			case 7 : // 修正：捐助我们的类型常量是7
 				return 5; // 捐助我们
-			case 4 :
+			case 4 : // 协助翻译的类型常量是4
 				return 6; // 协助翻译
 			case 2 :
 				return 7; // 协议
@@ -1235,12 +1319,12 @@ public class Hook implements IXposedHookLoadPackage {
 	}
 
 	/* =========================================================
-	* 判断当前调用栈是否来自 k.a.m0.f6.X1()
+	* 判断当前调用栈是否来自 k.a.o0.f6.X1()
 	* ======================================================= */
 	private boolean isCalledFromK6A2() {
 		StackTraceElement[] stack = Thread.currentThread().getStackTrace();
 		for (StackTraceElement el : stack) {
-			if ("k.a.m0.f6".equals(el.getClassName()) && "X1".equals(el.getMethodName())) {
+			if ("k.a.o0.f6".equals(el.getClassName()) && "X1".equals(el.getMethodName())) {
 				return true;
 			}
 		}
@@ -1281,7 +1365,7 @@ public class Hook implements IXposedHookLoadPackage {
 				View view = super.getView(position, convertView, parent);
 				TextView textView = (TextView) view.findViewById(android.R.id.text1);
 
-				// 确保文字不换行
+				// 关键设置：确保文字不换行
 				textView.setSingleLine(true);
 				textView.setEllipsize(TextUtils.TruncateAt.END);
 
@@ -1414,52 +1498,26 @@ public class Hook implements IXposedHookLoadPackage {
 	}
 
 	/* =========================================================
-	 * b方法 Hook 动态开关
-	 * ======================================================= */
-	private void setBHook(Context ctx, ClassLoader cl, boolean on) {
-		if (on) {
-			if (bHook == null) {
-				bHook = XposedHelpers.findAndHookMethod("k.a.a0.n.c", cl, "b", int.class, new XC_MethodHook() {
-					@Override
-					protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
-						param.setResult(true);
-						XposedBridge.log("b方法 Hook 生效：b(int) 方法返回 true");
-					}
-				});
-				XposedBridge.log("b方法 Hook 已启用");
-			}
-		} else {
-			if (bHook != null) {
-				bHook.unhook();
-				bHook = null;
-				XposedBridge.log("b方法 Hook 已停用");
-			}
-		}
-		bHookEnabled = on;
-		putPrefBoolean(ctx, KEY_B_HOOK, on);
-	}
-
-	/* =========================================================
 	 * 白名单 Hook 动态开关
 	 * ======================================================= */
 	private void setWhitelistHook(Context ctx, ClassLoader cl, boolean on) {
 		if (on) {
 			if (whitelistHook == null) {
-				whitelistHook = XposedHelpers.findAndHookMethod("k.a.a0.i.k", cl, "u", "k.a.a0.i.a",
+				whitelistHook = XposedHelpers.findAndHookMethod("k.a.c0.i.k", cl, "u", "k.a.c0.i.a",
 						new XC_MethodHook() {
 							@Override
 							protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
 								param.setResult(null);
-								XposedBridge.log("白名单 Hook 生效：u 方法被清空");
+								XposedBridge.log("[BetterVia] 成功Hook白名单方法");
 							}
 						});
-				XposedBridge.log("白名单 Hook 已启用");
+				XposedBridge.log("[BetterVia] 已解除Via白名单限制");
 			}
 		} else {
 			if (whitelistHook != null) {
 				whitelistHook.unhook();
 				whitelistHook = null;
-				XposedBridge.log("白名单 Hook 已停用");
+				XposedBridge.log("[BetterVia] Via白名单限制已恢复");
 			}
 		}
 		whitelistHookEnabled = on;
@@ -1489,13 +1547,13 @@ public class Hook implements IXposedHookLoadPackage {
 								});
 							}
 						});
-				XposedBridge.log("护眼模式 Hook 已启用");
+				XposedBridge.log("[BetterVia] 护眼模式已启用");
 			}
 		} else {
 			if (activityHook != null) {
 				activityHook.unhook();
 				activityHook = null;
-				XposedBridge.log("护眼模式 Hook 已停用");
+				XposedBridge.log("[BetterVia] 护眼模式已停用");
 			}
 			removeAllEyeProtectionOverlays();
 		}
@@ -1547,27 +1605,30 @@ public class Hook implements IXposedHookLoadPackage {
 			rootView.addView(overlay, params);
 			overlayViews.put(activity, overlay);
 
-			XposedBridge.log("已为 " + activity.getClass().getSimpleName() + " 添加护眼遮罩");
+			XposedBridge.log("[BetterVia] 已为 " + activity.getClass().getSimpleName() + " 添加护眼遮罩");
 
 		} catch (Exception e) {
-			XposedBridge.log("添加护眼遮罩失败: " + e);
+			XposedBridge.log("[BetterVia] 添加护眼遮罩失败: " + e);
 		}
 	}
 
 	/* =========================================================
-	 * 计算色温颜色
+	 * 计算色温颜色（优化版本，接近小米护眼效果）
 	 * ======================================================= */
 	private int calculateTemperatureColor(int temperature) {
 		// 从无色到淡黄色，保持高对比度
+		// 小米护眼模式的特点是颜色很淡，几乎不影响文字清晰度
+
 		float ratio = temperature / 100.0f;
 
 		// 使用较低的透明度，确保文字清晰
 		int alpha = (int) (0x40 * ratio); // 从0%到25%透明度
 
+		// 使用非常淡的暖黄色，类似小米护眼
 		// 这种颜色既提供暖色调，又不会降低文字对比度
-		int r = (int) (255 * ratio);
-		int g = (int) (245 * ratio);
-		int b = (int) (200 * ratio);
+		int r = (int) (255 * ratio); // 0 -> 255
+		int g = (int) (245 * ratio); // 0 -> 245 (稍微降低绿色)
+		int b = (int) (200 * ratio); // 0 -> 200 (明显降低蓝色)
 
 		return (alpha << 24) | (r << 16) | (g << 8) | b;
 	}
@@ -1639,7 +1700,7 @@ public class Hook implements IXposedHookLoadPackage {
 			}
 		}
 		overlayViews.clear();
-		XposedBridge.log("已移除所有护眼遮罩");
+		XposedBridge.log("[BetterVia] 已移除所有护眼遮罩");
 	}
 
 	/* =========================================================
@@ -1996,7 +2057,7 @@ public class Hook implements IXposedHookLoadPackage {
 	}
 
 	/* =========================================================
-	* 绘制预览用的纸质纹理
+	* 绘制预览用的纸质纹理（适配小尺寸）
 	* ======================================================= */
 	private void drawPaperTexturePreview(Canvas canvas, int textureLevel, int width, int height) {
 		Paint paint = new Paint();
@@ -2032,39 +2093,39 @@ public class Hook implements IXposedHookLoadPackage {
 	 * ======================================================= */
 	private void setGoogleServicesInterceptHook(Context ctx, ClassLoader cl, boolean on) {
 		if (on) {
-			XposedBridge.log("开始启用Google服务拦截（精确版）...");
+			XposedBridge.log("[BetterVia] 已启用Google个人信息收集拦截");
 
 			// 启用所有Google服务拦截
 			try {
 				setFirebaseAnalyticsHook(ctx, cl, true);
 			} catch (Exception e) {
-				XposedBridge.log("Firebase Analytics拦截启用失败: " + e);
+				XposedBridge.log("[BetterVia] Firebase Analytics拦截启用失败: " + e);
 			}
 
 			try {
 				setAppMeasurementHook(ctx, cl, true);
 			} catch (Exception e) {
-				XposedBridge.log("AppMeasurement拦截启用失败: " + e);
+				XposedBridge.log("[BetterVia] AppMeasurement拦截启用失败: " + e);
 			}
 
-			XposedBridge.log("Google服务拦截启用完成");
+			XposedBridge.log("[BetterVia] Google个人信息收集拦截完成");
 		} else {
-			XposedBridge.log("开始停用Google服务拦截...");
+			XposedBridge.log("[BetterVia] 已停用Google个人信息收集拦截");
 
 			// 停用所有Google服务拦截
 			try {
 				setFirebaseAnalyticsHook(ctx, cl, false);
 			} catch (Exception e) {
-				XposedBridge.log("Firebase Analytics拦截停用失败: " + e);
+				XposedBridge.log("[BetterVia] Firebase Analytics拦截停用失败: " + e);
 			}
 
 			try {
 				setAppMeasurementHook(ctx, cl, false);
 			} catch (Exception e) {
-				XposedBridge.log("AppMeasurement拦截停用失败: " + e);
+				XposedBridge.log("[BetterVia] AppMeasurement拦截停用失败: " + e);
 			}
 
-			XposedBridge.log("Google服务拦截停用完成");
+			XposedBridge.log("[BetterVia] Google个人信息收集拦截停用完成");
 		}
 		blockGoogleServicesEnabled = on;
 		putPrefBoolean(ctx, KEY_BLOCK_GOOGLE_SERVICES, on);
@@ -2085,21 +2146,21 @@ public class Hook implements IXposedHookLoadPackage {
 								String.class, Bundle.class, new XC_MethodHook() {
 									@Override
 									protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
-										XposedBridge.log("拦截Firebase Analytics事件: " + param.args[0]);
+										XposedBridge.log("[BetterVia] 拦截Firebase Analytics事件: " + param.args[0]);
 										// 直接阻止事件上报，不执行任何操作
 									}
 								});
-						XposedBridge.log("Firebase Analytics精确拦截已启用");
+						XposedBridge.log("[BetterVia] Firebase Analytics精确拦截已启用");
 					}
 				} catch (Exception e) {
-					XposedBridge.log("Firebase Analytics精确拦截设置失败: " + e);
+					XposedBridge.log("[BetterVia] Firebase Analytics精确拦截设置失败: " + e);
 				}
 			}
 		} else {
 			if (firebaseAnalyticsHook != null) {
 				firebaseAnalyticsHook.unhook();
 				firebaseAnalyticsHook = null;
-				XposedBridge.log("Firebase Analytics拦截已停用");
+				XposedBridge.log("[BetterVia] Firebase Analytics拦截已停用");
 			}
 		}
 	}
@@ -2119,22 +2180,23 @@ public class Hook implements IXposedHookLoadPackage {
 								String.class, String.class, Bundle.class, new XC_MethodHook() {
 									@Override
 									protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
-										XposedBridge.log("拦截AppMeasurement事件: " + param.args[0] + ", " + param.args[1]);
+										XposedBridge.log("[BetterVia] 拦截AppMeasurement事件: " + param.args[0] + ", "
+												+ param.args[1]);
 										// 直接阻止事件上报
 									}
 								});
 
-						XposedBridge.log("AppMeasurement精确拦截已启用");
+						XposedBridge.log("[BetterVia] AppMeasurement精确拦截已启用");
 					}
 				} catch (Exception e) {
-					XposedBridge.log("AppMeasurement精确拦截设置失败: " + e);
+					XposedBridge.log("[BetterVia] AppMeasurement精确拦截设置失败: " + e);
 				}
 			}
 		} else {
 			if (googleAnalyticsHook != null) {
 				googleAnalyticsHook.unhook();
 				googleAnalyticsHook = null;
-				XposedBridge.log("AppMeasurement拦截已停用");
+				XposedBridge.log("[BetterVia] AppMeasurement拦截已停用");
 			}
 		}
 	}
@@ -2201,6 +2263,7 @@ public class Hook implements IXposedHookLoadPackage {
 				dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
 				dialog.setCancelable(true);
 
+				// 根容器 - 设置圆角背景
 				FrameLayout dialogContainer = new FrameLayout(act);
 				GradientDrawable containerBg = new GradientDrawable();
 				containerBg.setColor(Color.WHITE);
@@ -2213,9 +2276,10 @@ public class Hook implements IXposedHookLoadPackage {
 
 				LinearLayout root = new LinearLayout(act);
 				root.setOrientation(LinearLayout.VERTICAL);
+				// 模仿护眼模式的边距：左右24dp，上下28dp，底部24dp
 				root.setPadding(dp(act, 24), dp(act, 28), dp(act, 24), dp(act, 24));
 
-				// 标题
+				// 标题 - 模仿护眼模式的大标题样式
 				TextView title = new TextView(act);
 				title.setText(getLocalizedString(ctx, "search_commands_dialog_title"));
 				title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 20);
@@ -2275,7 +2339,7 @@ public class Hook implements IXposedHookLoadPackage {
 							ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f);
 					leftContent.setLayoutParams(leftParams);
 
-					// 命令文本
+					// 命令文本 - 单行显示，不换行
 					TextView commandText = new TextView(act);
 					commandText.setText(command[0]);
 					commandText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
@@ -2296,7 +2360,7 @@ public class Hook implements IXposedHookLoadPackage {
 
 					commandContainer.addView(leftContent);
 
-					// 复制按钮
+					// 复制按钮 - 垂直居中
 					Button copyBtn = new Button(act);
 					copyBtn.setText(getLocalizedString(ctx, "command_copy"));
 					copyBtn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
@@ -2365,10 +2429,11 @@ public class Hook implements IXposedHookLoadPackage {
 					// 设置透明背景，确保圆角可见
 					window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
 
+					// 模仿护眼模式的窗口尺寸
 					DisplayMetrics metrics = new DisplayMetrics();
 					act.getWindowManager().getDefaultDisplay().getMetrics(metrics);
-					int width = (int) (metrics.widthPixels * 0.9); 
-					int height = (int) (metrics.heightPixels * 0.8);
+					int width = (int) (metrics.widthPixels * 0.9); // 护眼模式使用的是90%宽度
+					int height = (int) (metrics.heightPixels * 0.8); // 护眼模式使用的是80%高度
 
 					WindowManager.LayoutParams layoutParams = new WindowManager.LayoutParams();
 					layoutParams.copyFrom(window.getAttributes());
@@ -2439,7 +2504,7 @@ public class Hook implements IXposedHookLoadPackage {
 	}
 
 	/* =========================================================
-	 * 显示主页主题对话框
+	 * 显示主页主题对话框（改进版，支持网络加载）
 	 * ======================================================= */
 	private void showHomepageThemeDialog(final Context ctx) {
 		if (Context == null || !(Context instanceof Activity))
@@ -2703,7 +2768,7 @@ public class Hook implements IXposedHookLoadPackage {
 		Toast.makeText(ctx, getLocalizedString(ctx, "themes_load_failed") + ": " + error, Toast.LENGTH_SHORT).show();
 	}
 	/* =========================================================
-	 * 创建主题卡片
+	 * 创建主题卡片（优化图片加载错误处理）
 	 * ======================================================= */
 	private LinearLayout createThemeCard(final Activity act, final Context ctx, final ThemeInfo theme) {
 		// 主题卡片容器
@@ -2921,7 +2986,7 @@ public class Hook implements IXposedHookLoadPackage {
 	}
 
 	/* =========================================================
-	* 显示主题编辑器对话框
+	* 显示主题编辑器对话框（亮色UI版本 + 多语言适配）
 	* ======================================================= */
 	private void showThemeEditorDialog(final Context ctx) {
 		if (Context == null || !(Context instanceof Activity))
@@ -2972,7 +3037,7 @@ public class Hook implements IXposedHookLoadPackage {
 				contentLayout.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
 						ViewGroup.LayoutParams.MATCH_PARENT));
 				contentLayout.setPadding(dp(act, 16), dp(act, 16), dp(act, 16), dp(act, 16));
-				// 文件选择标签
+				// 文件选择标签（多语言适配）
 				TextView fileLabel = new TextView(act);
 				fileLabel.setText(getLocalizedString(ctx, "theme_editor_select_file"));
 				fileLabel.setTextColor(0xFF333333);
@@ -3142,7 +3207,9 @@ public class Hook implements IXposedHookLoadPackage {
 						dialog.dismiss();
 					}
 				});
-				// 保存事件
+				// 保存事件（多语言适配Toast）
+				/* ================== 修改保存按钮逻辑 ================== */
+				// 在保存按钮的点击事件中：
 				saveButton.setOnClickListener(new View.OnClickListener() {
 					@Override
 					public void onClick(View v) {
@@ -3246,7 +3313,7 @@ public class Hook implements IXposedHookLoadPackage {
 					});
 
 				} catch (Exception e) {
-					XposedBridge.log("应用主题失败: " + e);
+					XposedBridge.log("[BetterVia] 应用主题失败: " + e);
 					((Activity) Context).runOnUiThread(new Runnable() {
 						@Override
 						public void run() {
@@ -3287,7 +3354,7 @@ public class Hook implements IXposedHookLoadPackage {
 				return true;
 			}
 		} catch (Exception e) {
-			XposedBridge.log("下载文件失败: " + e);
+			XposedBridge.log("[BetterVia] 下载文件失败: " + e);
 		} finally {
 			try {
 				if (outputStream != null)
@@ -3295,7 +3362,7 @@ public class Hook implements IXposedHookLoadPackage {
 				if (connection != null)
 					connection.disconnect();
 			} catch (Exception e) {
-				XposedBridge.log("关闭流失败: " + e);
+				XposedBridge.log("[BetterVia] 关闭流失败: " + e);
 			}
 		}
 		return false;
@@ -3318,7 +3385,7 @@ public class Hook implements IXposedHookLoadPackage {
 				ctx.startActivity(intent);
 			}
 		} catch (Exception e) {
-			XposedBridge.log("重启Via失败: " + e);
+			XposedBridge.log("[BetterVia] 重启Via失败: " + e);
 		}
 	}
 
@@ -3337,17 +3404,18 @@ public class Hook implements IXposedHookLoadPackage {
 								if (screenshotProtectionEnabled) {
 									activity.getWindow().setFlags(WindowManager.LayoutParams.FLAG_SECURE,
 											WindowManager.LayoutParams.FLAG_SECURE);
-									XposedBridge.log("已为 " + activity.getClass().getSimpleName() + " 启用截屏防护");
+									XposedBridge
+											.log("[BetterVia] 已为 " + activity.getClass().getSimpleName() + " 启用截屏防护");
 								}
 							}
 						});
-				XposedBridge.log("截屏防护 Hook 已启用");
+				XposedBridge.log("[BetterVia] 截屏防护已启用");
 			}
 		} else {
 			if (screenshotProtectionHook != null) {
 				screenshotProtectionHook.unhook();
 				screenshotProtectionHook = null;
-				XposedBridge.log("截屏防护 Hook 已停用");
+				XposedBridge.log("[BetterVia] 截屏防护已停用");
 
 				// 移除所有Activity的FLAG_SECURE标志
 				removeScreenshotProtection();
@@ -3371,7 +3439,7 @@ public class Hook implements IXposedHookLoadPackage {
 				});
 			}
 		}
-		XposedBridge.log("已移除所有Activity的截屏防护");
+		XposedBridge.log("[BetterVia] 已移除所有Activity的截屏防护");
 	}
 
 	/* =========================================================
@@ -3393,19 +3461,20 @@ public class Hook implements IXposedHookLoadPackage {
 											activity.getWindow()
 													.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 											screenOnActivities.put(activity, true);
-											XposedBridge.log("已为 " + activity.getClass().getSimpleName() + " 启用屏幕常亮");
+											XposedBridge.log("[BetterVia] 已为 " + activity.getClass().getSimpleName()
+													+ " 启用屏幕常亮");
 										}
 									});
 								}
 							}
 						});
-				XposedBridge.log("屏幕常亮 Hook 已启用");
+				XposedBridge.log("[BetterVia] 屏幕常亮已启用");
 			}
 		} else {
 			if (keepScreenOnHook != null) {
 				keepScreenOnHook.unhook();
 				keepScreenOnHook = null;
-				XposedBridge.log("屏幕常亮 Hook 已停用");
+				XposedBridge.log("[BetterVia] 屏幕常亮已停用");
 
 				// 移除所有Activity的FLAG_KEEP_SCREEN_ON标志
 				removeKeepScreenOn();
@@ -3413,6 +3482,123 @@ public class Hook implements IXposedHookLoadPackage {
 		}
 		keepScreenOnEnabled = on;
 		putPrefBoolean(ctx, KEY_KEEP_SCREEN_ON, on);
+	}
+
+	/* =========================================================
+	 * 后台听视频功能（通过Hook Activity生命周期实现）
+	 * ======================================================= */
+	private void setBackgroundVideoAudio(Context ctx, ClassLoader cl, boolean on) {
+		if (on) {
+			if (backgroundVideoHook == null) {
+				try {
+					// Hook Shell类的onPause方法，阻止其执行
+					backgroundVideoHook = XposedHelpers.findAndHookMethod("mark.via.Shell", cl, "onPause",
+							new XC_MethodReplacement() {
+								@Override
+								protected Object replaceHookedMethod(MethodHookParam param) throws Throwable {
+									XposedBridge.log("[BetterVia] 阻止了Shell.onPause调用，保持前台状态");
+									return null; // 完全阻止onPause执行
+								}
+							});
+
+					// Hook onWindowFocusChanged方法，始终报告获得焦点
+					XposedHelpers.findAndHookMethod("mark.via.Shell", cl, "onWindowFocusChanged", boolean.class,
+							new XC_MethodHook() {
+								@Override
+								protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+									// 强制将参数改为true，表示始终有焦点
+									param.args[0] = true;
+									XposedBridge.log("[BetterVia] 强制设置窗口焦点为true");
+								}
+							});
+
+					// Hook isFinishing方法，始终返回false
+					XposedHelpers.findAndHookMethod("mark.via.Shell", cl, "isFinishing", new XC_MethodReplacement() {
+						@Override
+						protected Object replaceHookedMethod(MethodHookParam param) throws Throwable {
+							XposedBridge.log("[BetterVia] 强制返回isFinishing=false");
+							return false;
+						}
+					});
+
+					// Hook isDestroyed方法（API 17+），始终返回false
+					if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
+						XposedHelpers.findAndHookMethod("mark.via.Shell", cl, "isDestroyed",
+								new XC_MethodReplacement() {
+									@Override
+									protected Object replaceHookedMethod(MethodHookParam param) throws Throwable {
+										XposedBridge.log("[BetterVia] 强制返回isDestroyed=false");
+										return false;
+									}
+								});
+					}
+
+					XposedBridge.log("[BetterVia] 后台听视频功能已启用 - 生命周期Hook方案");
+				} catch (Throwable e) {
+					XposedBridge.log("[BetterVia] 启用后台听视频功能失败: " + e.getMessage());
+				}
+			}
+		} else {
+			if (backgroundVideoHook != null) {
+				try {
+					backgroundVideoHook.unhook();
+					backgroundVideoHook = null;
+					XposedBridge.log("[BetterVia] 后台听视频功能已停用");
+				} catch (Throwable e) {
+					XposedBridge.log("[BetterVia] 停用后台听视频功能出错: " + e.getMessage());
+				}
+			}
+		}
+		backgroundVideoEnabled = on;
+		putPrefBoolean(ctx, KEY_BACKGROUND_VIDEO, on);
+	}
+
+	/* =========================================================
+	 * 通过JavaScript注入保持视频播放
+	 * ======================================================= */
+	private void injectVideoKeepAliveScript(final WebView webView) {
+		if (!backgroundVideoEnabled)
+			return;
+
+		new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+			@Override
+			public void run() {
+				try {
+					String jsCode = "javascript:(function() {" + "    // 阻止页面可见性变化导致的视频暂停"
+							+ "    var originalHidden = document.hidden;"
+							+ "    var originalVisibilityState = document.visibilityState;" + "    "
+							+ "    // 重写页面可见性属性" + "    Object.defineProperty(document, 'hidden', {"
+							+ "        get: function() { return false; }" + // 始终返回false，表示页面可见
+							"    });" + "    " + "    Object.defineProperty(document, 'visibilityState', {"
+							+ "        get: function() { return 'visible'; }" + // 始终返回visible
+							"    });" + "    " + "    // 重写addEventListener，过滤visibilitychange事件"
+							+ "    var originalAddEventListener = document.addEventListener;"
+							+ "    document.addEventListener = function(type, listener, options) {"
+							+ "        if (type === 'visibilitychange') {" + "            // 忽略visibilitychange事件监听"
+							+ "            console.log('Blocked visibilitychange listener');" + "            return;"
+							+ "        }" + "        originalAddEventListener.call(this, type, listener, options);"
+							+ "    };" + "    " + "    // 保持现有视频播放"
+							+ "    var videos = document.getElementsByTagName('video');"
+							+ "    for (var i = 0; i < videos.length; i++) {" + "        var video = videos[i];"
+							+ "        if (video.paused) {" + "            video.play().catch(function(e) {});"
+							+ "        }" + "        " + "        // 监听暂停事件，自动重新播放"
+							+ "        video.addEventListener('pause', function(e) {"
+							+ "            if (!document.hidden) { // 由于我们重写了hidden，这里总是true"
+							+ "                this.play().catch(function(e) {});" + "            }" + "        });"
+							+ "    }" + "    " + "    console.log('Video keep-alive script injected');" + "})();";
+
+					if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+						webView.evaluateJavascript(jsCode, null);
+					} else {
+						webView.loadUrl(jsCode);
+					}
+
+					XposedBridge.log("[BetterVia] 已注入视频保持播放脚本");
+				} catch (Exception e) {
+					XposedBridge.log("[BetterVia] 注入视频脚本失败: " + e.getMessage());
+				}
+			}
+		}, 2000); // 延迟2秒注入，确保页面加载完成
 	}
 
 	/* =========================================================
@@ -3430,7 +3616,7 @@ public class Hook implements IXposedHookLoadPackage {
 			}
 		}
 		screenOnActivities.clear();
-		XposedBridge.log("已移除所有Activity的屏幕常亮设置");
+		XposedBridge.log("[BetterVia] 已移除所有Activity的屏幕常亮设置");
 	}
 
 	/* =========================================================
@@ -4133,7 +4319,7 @@ public class Hook implements IXposedHookLoadPackage {
 	}
 
 	/* =========================================================
-	 * 显示脚本详情对话框
+	 * 显示脚本详情对话框（修改版）
 	 * ======================================================= */
 	private void showScriptDetailDialog(final Context ctx, final ScriptInfo script) {
 		if (Context == null || !(Context instanceof Activity))
@@ -4236,6 +4422,9 @@ public class Hook implements IXposedHookLoadPackage {
 		void onLoadFailed(String error);
 	}
 
+	/* =========================================================
+	* 添加广告走开设置项
+	* ======================================================= */
 	/* =========================================================
 	* 添加广告走开设置项
 	* ======================================================= */
@@ -4898,19 +5087,20 @@ public class Hook implements IXposedHookLoadPackage {
 										public void run() {
 											setupStatusBarHiding(activity);
 											statusBarHiddenActivities.put(activity, true);
-											XposedBridge.log("已为 " + activity.getClass().getSimpleName() + " 设置状态栏隐藏");
+											XposedBridge.log("[BetterVia] 已为 " + activity.getClass().getSimpleName()
+													+ " 设置状态栏隐藏");
 										}
 									});
 								}
 							}
 						});
-				XposedBridge.log("隐藏状态栏 Hook 已启用");
+				XposedBridge.log("[BetterVia] 隐藏状态栏已启用");
 			}
 		} else {
 			if (hideStatusBarHook != null) {
 				hideStatusBarHook.unhook();
 				hideStatusBarHook = null;
-				XposedBridge.log("隐藏状态栏 Hook 已停用");
+				XposedBridge.log("[BetterVia] 隐藏状态栏已停用");
 
 				// 恢复所有Activity的状态栏显示
 				restoreStatusBar();
@@ -4954,7 +5144,7 @@ public class Hook implements IXposedHookLoadPackage {
 				}
 			});
 		} catch (Exception e) {
-			XposedBridge.log("setupStatusBarHiding 失败: " + e);
+			XposedBridge.log("[BetterVia] 滑动更新状态栏失败: " + e);
 		}
 	}
 
@@ -4983,7 +5173,7 @@ public class Hook implements IXposedHookLoadPackage {
 					WindowManager.LayoutParams.FLAG_FULLSCREEN);
 
 		} catch (Exception e) {
-			XposedBridge.log("立即隐藏状态栏失败: " + e);
+			XposedBridge.log("[BetterVia] 立即隐藏状态栏失败: " + e);
 		}
 	}
 
@@ -5022,7 +5212,7 @@ public class Hook implements IXposedHookLoadPackage {
 							activity.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
 
 						} catch (Exception e) {
-							XposedBridge.log("恢复状态栏失败: " + e);
+							XposedBridge.log("[BetterVia] 恢复状态栏失败: " + e);
 						}
 					}
 				});
@@ -5030,7 +5220,7 @@ public class Hook implements IXposedHookLoadPackage {
 		}
 		statusBarHiddenActivities.clear();
 		statusBarRehideRunnables.clear();
-		XposedBridge.log("已恢复所有Activity的状态栏显示");
+		XposedBridge.log("[BetterVia] 已恢复所有Activity的状态栏显示");
 	}
 
 	/* =========================================================
@@ -5233,26 +5423,203 @@ public class Hook implements IXposedHookLoadPackage {
 				contentLayout.addView(buttonBar);
 				rootLayout.addView(contentLayout);
 				dialog.setContentView(rootLayout);
-				// 存储当前显示的Cookie列表用于搜索
+				// 存储当前显示的Cookie列表和域名列表用于搜索
 				final List<CookieItem>[] currentCookieList = new List[]{new ArrayList<CookieItem>()};
+				final List<DomainItem>[] currentDomainList = new List[]{new ArrayList<DomainItem>()};
+				final boolean[] isDomainView = {true}; // 默认显示域名分组视图
+
+				// 添加视图切换按钮（初始隐藏）
+				final LinearLayout switchBar = new LinearLayout(act);
+				switchBar.setOrientation(LinearLayout.HORIZONTAL);
+				switchBar.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+						ViewGroup.LayoutParams.WRAP_CONTENT));
+				switchBar.setPadding(0, 0, 0, dp(act, 12));
+				switchBar.setVisibility(View.GONE); // 初始隐藏
+
+				// 域名视图按钮
+				final Button domainViewBtn = new Button(act);
+				domainViewBtn.setText(getLocalizedString(ctx, "cookie_view_domain"));
+				domainViewBtn.setTextColor(Color.WHITE);
+				domainViewBtn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+				domainViewBtn.setBackground(getRoundBg(act, 0xFF6200EE, 6));
+				domainViewBtn.setPadding(dp(act, 12), dp(act, 6), dp(act, 12), dp(act, 6));
+				LinearLayout.LayoutParams domainViewLp = new LinearLayout.LayoutParams(0,
+						ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f);
+				domainViewLp.rightMargin = dp(act, 4);
+				switchBar.addView(domainViewBtn, domainViewLp);
+
+				// 完整列表视图按钮
+				final Button listViewBtn = new Button(act);
+				listViewBtn.setText(getLocalizedString(ctx, "cookie_view_list"));
+				listViewBtn.setTextColor(Color.BLACK);
+				listViewBtn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+				listViewBtn.setBackground(getRoundBg(act, 0xFFF0F0F0, 6));
+				listViewBtn.setPadding(dp(act, 12), dp(act, 6), dp(act, 12), dp(act, 6));
+				LinearLayout.LayoutParams listViewLp = new LinearLayout.LayoutParams(0,
+						ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f);
+				listViewLp.leftMargin = dp(act, 4);
+				switchBar.addView(listViewBtn, listViewLp);
+
+				// 将切换栏插入到搜索栏后面
+				contentLayout.addView(switchBar, contentLayout.getChildCount() - 2); // 插入到列表容器之前
+
+				// 添加视图切换专用的加载指示器（初始隐藏）
+				final FrameLayout switchLoadingFrame = new FrameLayout(act);
+				FrameLayout.LayoutParams frameLp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+						ViewGroup.LayoutParams.MATCH_PARENT);
+				switchLoadingFrame.setLayoutParams(frameLp);
+				switchLoadingFrame.setVisibility(View.GONE); // 初始隐藏
+
+				final LinearLayout switchLoadingContainer = new LinearLayout(act);
+				switchLoadingContainer.setOrientation(LinearLayout.VERTICAL);
+				switchLoadingContainer.setGravity(Gravity.CENTER);
+				switchLoadingContainer.setPadding(dp(act, 24), dp(act, 24), dp(act, 24), dp(act, 24));
+				FrameLayout.LayoutParams containerLp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+						ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER);
+				switchLoadingFrame.addView(switchLoadingContainer, containerLp);
+
+				// 切换加载动画 - 增大尺寸
+				ProgressBar switchProgressBar = new ProgressBar(act);
+				switchProgressBar.setIndeterminate(true);
+				LinearLayout.LayoutParams switchProgressLp = new LinearLayout.LayoutParams(dp(act, 64), dp(act, 64));
+				switchProgressLp.gravity = Gravity.CENTER;
+				switchProgressLp.bottomMargin = dp(act, 12);
+				switchLoadingContainer.addView(switchProgressBar, switchProgressLp);
+
+				// 切换加载文本
+				TextView switchLoadingText = new TextView(act);
+				switchLoadingText.setText(getLocalizedString(ctx, "cookie_view_switching"));
+				switchLoadingText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
+				switchLoadingText.setTextColor(0xFF666666);
+				switchLoadingText.setGravity(Gravity.CENTER);
+				switchLoadingText.setTypeface(null, Typeface.NORMAL);
+				switchLoadingContainer.addView(switchLoadingText);
+
+				// 将切换加载指示器添加到列表容器的父容器中，覆盖在整个列表上方
+				listAndLoadingContainer.addView(switchLoadingFrame);
+
 				// 异步加载Cookie数据
 				new Thread(new Runnable() {
 					@Override
 					public void run() {
 						final List<CookieItem> cookieItems = loadCookieData(ctx);
+						final List<DomainItem> domainItems = loadDomainGroupedCookieData(ctx);
 						currentCookieList[0] = cookieItems;
+						currentDomainList[0] = domainItems;
 						act.runOnUiThread(new Runnable() {
 							@Override
 							public void run() {
 								// 隐藏加载提示
 								loadingContainer.setVisibility(View.GONE);
+								// 显示切换按钮
+								switchBar.setVisibility(View.VISIBLE);
 								// 显示列表并填充数据
 								scrollView.setVisibility(View.VISIBLE);
-								populateCookieList(act, listContainer, cookieItems, deleteButton, scrollView);
+								// 默认显示域名分组视图
+								populateDomainList(act, listContainer, domainItems, deleteButton, scrollView, ctx,
+										domainItems);
 							}
 						});
 					}
 				}).start();
+
+				// 域名视图按钮点击事件
+				domainViewBtn.setOnClickListener(new View.OnClickListener() {
+					@Override
+					public void onClick(View v) {
+						if (!isDomainView[0]) {
+							// 1. 禁用按钮防止重复点击
+							domainViewBtn.setEnabled(false);
+							listViewBtn.setEnabled(false);
+
+							// 2. 显示切换加载指示器
+							switchLoadingFrame.setVisibility(View.VISIBLE);
+							// 3. 隐藏列表内容
+							scrollView.setVisibility(View.GONE);
+
+							// 4. 短暂延迟后切换视图
+							new Handler().postDelayed(new Runnable() {
+								@Override
+								public void run() {
+									act.runOnUiThread(new Runnable() {
+										@Override
+										public void run() {
+											// 5. 切换视图状态
+											isDomainView[0] = true;
+											domainViewBtn.setTextColor(Color.WHITE);
+											domainViewBtn.setBackground(getRoundBg(act, 0xFF6200EE, 6));
+											listViewBtn.setTextColor(Color.BLACK);
+											listViewBtn.setBackground(getRoundBg(act, 0xFFF0F0F0, 6));
+
+											// 6. 隐藏切换加载指示器
+											switchLoadingFrame.setVisibility(View.GONE);
+											// 7. 显示列表并填充数据
+											scrollView.setVisibility(View.VISIBLE);
+											listContainer.removeAllViews(); // 清空旧数据
+
+											// 8. 显示域名列表
+											populateDomainList(act, listContainer, currentDomainList[0], deleteButton,
+													scrollView, ctx, currentDomainList[0]);
+
+											// 9. 重新启用按钮
+											domainViewBtn.setEnabled(true);
+											listViewBtn.setEnabled(true);
+										}
+									});
+								}
+							}, 300); // 300ms延迟，让用户看到切换效果
+						}
+					}
+				});
+
+				// 完整列表视图按钮点击事件
+				listViewBtn.setOnClickListener(new View.OnClickListener() {
+					@Override
+					public void onClick(View v) {
+						if (isDomainView[0]) {
+							// 1. 禁用按钮防止重复点击
+							domainViewBtn.setEnabled(false);
+							listViewBtn.setEnabled(false);
+
+							// 2. 显示切换加载指示器
+							switchLoadingFrame.setVisibility(View.VISIBLE);
+							// 3. 隐藏列表内容
+							scrollView.setVisibility(View.GONE);
+
+							// 4. 短暂延迟后切换视图
+							new Handler().postDelayed(new Runnable() {
+								@Override
+								public void run() {
+									act.runOnUiThread(new Runnable() {
+										@Override
+										public void run() {
+											// 5. 切换视图状态
+											isDomainView[0] = false;
+											listViewBtn.setTextColor(Color.WHITE);
+											listViewBtn.setBackground(getRoundBg(act, 0xFF6200EE, 6));
+											domainViewBtn.setTextColor(Color.BLACK);
+											domainViewBtn.setBackground(getRoundBg(act, 0xFFF0F0F0, 6));
+
+											// 6. 隐藏切换加载指示器
+											switchLoadingFrame.setVisibility(View.GONE);
+											// 7. 显示列表并填充数据
+											scrollView.setVisibility(View.VISIBLE);
+											listContainer.removeAllViews(); // 清空旧数据
+
+											// 8. 显示完整Cookie列表
+											populateCookieList(act, listContainer, currentCookieList[0], deleteButton,
+													scrollView);
+
+											// 9. 重新启用按钮
+											domainViewBtn.setEnabled(true);
+											listViewBtn.setEnabled(true);
+										}
+									});
+								}
+							}, 300); // 300ms延迟，让用户看到切换效果
+						}
+					}
+				});
 
 				// 返回按钮事件
 				backButton.setOnClickListener(new View.OnClickListener() {
@@ -5267,22 +5634,34 @@ public class Hook implements IXposedHookLoadPackage {
 					public void onClick(View v) {
 						// 1. 显示加载提示（与初次加载完全一致）
 						loadingContainer.setVisibility(View.VISIBLE);
-						// 2. 隐藏列表（避免加载时显示旧数据）
+						// 2. 隐藏切换按钮和列表（避免加载时显示旧数据）
+						switchBar.setVisibility(View.GONE);
 						scrollView.setVisibility(View.GONE);
 						new Thread(new Runnable() {
 							@Override
 							public void run() {
-								final List<CookieItem> refreshedData = loadCookieData(ctx);
-								currentCookieList[0] = refreshedData;
+								final List<CookieItem> refreshedCookieData = loadCookieData(ctx);
+								final List<DomainItem> refreshedDomainData = loadDomainGroupedCookieData(ctx);
+								currentCookieList[0] = refreshedCookieData;
+								currentDomainList[0] = refreshedDomainData;
 								act.runOnUiThread(new Runnable() {
 									@Override
 									public void run() {
 										// 3. 隐藏加载提示
 										loadingContainer.setVisibility(View.GONE);
-										// 4. 显示列表并填充新数据
+										// 4. 显示切换按钮和列表并填充新数据
+										switchBar.setVisibility(View.VISIBLE);
 										scrollView.setVisibility(View.VISIBLE);
 										listContainer.removeAllViews(); // 清空旧数据
-										populateCookieList(act, listContainer, refreshedData, deleteButton, scrollView);
+
+										// 根据当前视图模式填充数据
+										if (isDomainView[0]) {
+											populateDomainList(act, listContainer, refreshedDomainData, deleteButton,
+													scrollView, ctx, refreshedDomainData);
+										} else {
+											populateCookieList(act, listContainer, refreshedCookieData, deleteButton,
+													scrollView);
+										}
 										Toast.makeText(act, getLocalizedString(ctx, "cookie_management_refreshed"),
 												Toast.LENGTH_SHORT).show();
 									}
@@ -5298,23 +5677,55 @@ public class Hook implements IXposedHookLoadPackage {
 						final String query = searchEdit.getText().toString().trim().toLowerCase();
 						if (query.isEmpty()) {
 							// 如果搜索为空，显示所有
-							populateCookieList(act, listContainer, currentCookieList[0], deleteButton, scrollView);
+							if (isDomainView[0]) {
+								populateDomainList(act, listContainer, currentDomainList[0], deleteButton, scrollView,
+										ctx);
+							} else {
+								populateCookieList(act, listContainer, currentCookieList[0], deleteButton, scrollView);
+							}
 							return;
 						}
-						// 过滤Cookie列表
-						List<CookieItem> filteredList = new ArrayList<CookieItem>();
-						for (CookieItem item : currentCookieList[0]) {
-							if ((item.host_key != null && item.host_key.toLowerCase().contains(query))
-									|| (item.name != null && item.name.toLowerCase().contains(query))
-									|| (item.value != null && item.value.toLowerCase().contains(query))) {
-								filteredList.add(item);
+
+						if (isDomainView[0]) {
+							// 域名视图：过滤域名列表
+							List<DomainItem> filteredDomainList = new ArrayList<DomainItem>();
+							for (DomainItem domainItem : currentDomainList[0]) {
+								boolean domainMatch = domainItem.domain.toLowerCase().contains(query);
+								boolean cookieMatch = false;
+
+								// 检查该域名下的Cookie是否匹配
+								for (CookieItem cookie : domainItem.cookies) {
+									if ((cookie.name != null && cookie.name.toLowerCase().contains(query))
+											|| (cookie.value != null && cookie.value.toLowerCase().contains(query))) {
+										cookieMatch = true;
+										break;
+									}
+								}
+
+								if (domainMatch || cookieMatch) {
+									filteredDomainList.add(domainItem);
+								}
 							}
+							populateDomainList(act, listContainer, filteredDomainList, deleteButton, scrollView, ctx,
+									filteredDomainList);
+							String resultMsg = String.format(getLocalizedString(act, "cookie_domain_search_result"),
+									filteredDomainList.size());
+							Toast.makeText(act, resultMsg, Toast.LENGTH_SHORT).show();
+						} else {
+							// 完整列表视图：过滤Cookie列表
+							List<CookieItem> filteredList = new ArrayList<CookieItem>();
+							for (CookieItem item : currentCookieList[0]) {
+								if ((item.host_key != null && item.host_key.toLowerCase().contains(query))
+										|| (item.name != null && item.name.toLowerCase().contains(query))
+										|| (item.value != null && item.value.toLowerCase().contains(query))) {
+									filteredList.add(item);
+								}
+							}
+							populateCookieList(act, listContainer, filteredList, deleteButton, scrollView);
+							String resultMsg = String.format(getLocalizedString(act, "cookie_search_result"),
+									filteredList.size());
+							Toast.makeText(act, resultMsg, Toast.LENGTH_SHORT).show();
 						}
-						populateCookieList(act, listContainer, filteredList, deleteButton, scrollView);
-						// 多语言适配：替换硬编码Toast文本
-						String resultMsg = String.format(getLocalizedString(act, "cookie_search_result"),
-								filteredList.size());
-						Toast.makeText(act, resultMsg, Toast.LENGTH_SHORT).show();
 					}
 				});
 
@@ -5322,7 +5733,7 @@ public class Hook implements IXposedHookLoadPackage {
 				deleteButton.setOnClickListener(new View.OnClickListener() {
 					@Override
 					public void onClick(View v) {
-						showDeleteConfirmDialog(act, ctx, listContainer, deleteButton, scrollView);
+						showDeleteConfirmDialog(act, ctx, listContainer, deleteButton, scrollView, isDomainView[0]);
 					}
 				});
 				// 关闭按钮事件
@@ -5338,7 +5749,7 @@ public class Hook implements IXposedHookLoadPackage {
 	}
 
 	/* =========================================================
-	 * 显示Cookie详情对话框
+	 * 显示Cookie详情对话框（修复版本 + 多语言适配）
 	 * ======================================================= */
 	private void showCookieDetailDialog(final Activity act, final CookieItem cookie) {
 		AlertDialog.Builder builder = new AlertDialog.Builder(act);
@@ -5475,7 +5886,7 @@ public class Hook implements IXposedHookLoadPackage {
 					listContainer.removeViewAt(i);
 					// 修复：传入 act 作为 Context 参数（act 是 Context 子类）
 					updateDeleteButtonState(act, listContainer, deleteButton);
-					XposedBridge.log("已从列表移除被删除的Cookie: " + item.name);
+					XposedBridge.log("[BetterVia] 已从列表移除被删除的Cookie: " + item.name);
 					break;
 				}
 			}
@@ -5547,7 +5958,7 @@ public class Hook implements IXposedHookLoadPackage {
 			for (int i = 0; i < layout.getChildCount(); i++) {
 				View child = layout.getChildAt(i);
 				if (child.getTag() instanceof CookieItem) {
-					return layout; // 找到包含CookieItem的LinearLayout，直接返回
+					return layout; // 找到包含CookieItem的LinearLayout，直接返回（即列表容器）
 				}
 			}
 		}
@@ -5565,7 +5976,7 @@ public class Hook implements IXposedHookLoadPackage {
 	}
 
 	/* =========================================================
-	 * 查找Cookie列表的ScrollView
+	 * 查找Cookie列表的ScrollView（改进版）
 	 * ======================================================= */
 	private ScrollView findCookieListScrollView(View view) {
 		if (view instanceof ScrollView) {
@@ -5783,7 +6194,7 @@ public class Hook implements IXposedHookLoadPackage {
 			db.update(COOKIE_TABLE_NAME, values, whereClause, whereArgs);
 
 		} catch (Exception e) {
-			XposedBridge.log("更新Cookie失败: " + e);
+			XposedBridge.log("[BetterVia] 更新Cookie失败: " + e);
 		} finally {
 			if (db != null) {
 				db.close();
@@ -5812,6 +6223,8 @@ public class Hook implements IXposedHookLoadPackage {
 		final int[] selectedCount = {0};
 		for (int i = 0; i < cookieItems.size(); i++) {
 			final CookieItem item = cookieItems.get(i);
+			// 清理选中状态，防止删除后再次进入时仍然保持勾选状态
+			item.selected = false;
 			// 创建Cookie项布局
 			LinearLayout itemLayout = new LinearLayout(act);
 			itemLayout.setOrientation(LinearLayout.VERTICAL);
@@ -5918,20 +6331,598 @@ public class Hook implements IXposedHookLoadPackage {
 	}
 
 	/* =========================================================
+	 * 填充域名列表（支持滑动和选择 + 多语言适配）
+	 * ======================================================= */
+	private void populateDomainList(final Activity act, LinearLayout container, List<DomainItem> domainItems,
+			final Button deleteButton, final ScrollView scrollView, final Context ctx) {
+		container.removeAllViews();
+		if (domainItems.isEmpty()) {
+			TextView emptyText = new TextView(act);
+			emptyText.setText(getLocalizedString(act, "cookie_manager_empty"));
+			emptyText.setTextColor(0xFF888888);
+			emptyText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+			emptyText.setGravity(Gravity.CENTER);
+			emptyText.setPadding(0, dp(act, 32), 0, dp(act, 32));
+			container.addView(emptyText);
+			deleteButton.setEnabled(false);
+			return;
+		}
+
+		// 添加选择状态计数器
+		final int[] selectedCount = {0};
+
+		for (int i = 0; i < domainItems.size(); i++) {
+			final DomainItem domainItem = domainItems.get(i);
+			// 清理选中状态，防止删除后再次进入时仍然保持勾选状态
+			domainItem.selected = false;
+
+			// 创建域名项布局
+			LinearLayout itemLayout = new LinearLayout(act);
+			itemLayout.setOrientation(LinearLayout.VERTICAL);
+			itemLayout.setBackground(getRoundBg(act, 0xFFF8F9FA, 6));
+			itemLayout.setPadding(dp(act, 12), dp(act, 12), dp(act, 12), dp(act, 12));
+			LinearLayout.LayoutParams itemLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+					ViewGroup.LayoutParams.WRAP_CONTENT);
+			itemLp.bottomMargin = dp(act, 8);
+			container.addView(itemLayout, itemLp);
+
+			// 关联DomainItem到视图Tag
+			itemLayout.setTag(domainItem);
+
+			// 第一行：域名和选择框
+			LinearLayout firstRow = new LinearLayout(act);
+			firstRow.setOrientation(LinearLayout.HORIZONTAL);
+			firstRow.setGravity(Gravity.CENTER_VERTICAL);
+
+			// 选择框
+			final CheckBox selectCheckbox = new CheckBox(act);
+			selectCheckbox.setChecked(domainItem.selected);
+			selectCheckbox.setScaleX(0.8f);
+			selectCheckbox.setScaleY(0.8f);
+			firstRow.addView(selectCheckbox);
+
+			// 域名
+			TextView domainText = new TextView(act);
+			domainText.setText(domainItem.domain);
+			domainText.setTextColor(Color.BLACK);
+			domainText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+			domainText.setTypeface(null, Typeface.BOLD);
+			domainText.setEllipsize(TextUtils.TruncateAt.END);
+			domainText.setSingleLine(true);
+			domainText.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f));
+			firstRow.addView(domainText);
+
+			// Cookie数量
+			TextView countText = new TextView(act);
+			String countLabel = getLocalizedString(act, "cookie_domain_count_label");
+			countText.setText(String.format(countLabel, domainItem.getCookieCount()));
+			countText.setTextColor(0xFF666666);
+			countText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+			LinearLayout.LayoutParams countLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+					ViewGroup.LayoutParams.WRAP_CONTENT);
+			countLp.leftMargin = dp(act, 8);
+			firstRow.addView(countText, countLp);
+
+			itemLayout.addView(firstRow);
+
+			// 第二行：预览前几个Cookie名称
+			LinearLayout secondRow = new LinearLayout(act);
+			secondRow.setOrientation(LinearLayout.VERTICAL);
+			secondRow.setPadding(dp(act, 24), dp(act, 4), 0, 0);
+
+			// 显示前3个Cookie的名称
+			int previewCount = Math.min(3, domainItem.cookies.size());
+			for (int j = 0; j < previewCount; j++) {
+				CookieItem cookie = domainItem.cookies.get(j);
+				TextView cookiePreview = new TextView(act);
+				String cookieName = cookie.name != null && !cookie.name.isEmpty()
+						? cookie.name
+						: getLocalizedString(act, "cookie_field_unknown");
+				String cookieValue = cookie.value != null && !cookie.value.isEmpty()
+						? cookie.value
+						: getLocalizedString(act, "cookie_no_value");
+				String valueDisplay = cookieValue.length() > 20 ? cookieValue.substring(0, 20) + "..." : cookieValue;
+				cookiePreview.setText("• " + cookieName + ": " + valueDisplay);
+				cookiePreview.setTextColor(0xFF666666);
+				cookiePreview.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
+				secondRow.addView(cookiePreview);
+			}
+
+			// 如果有更多Cookie，显示"还有X个"提示
+			if (domainItem.cookies.size() > 3) {
+				TextView moreText = new TextView(act);
+				int moreCount = domainItem.cookies.size() - 3;
+				String moreLabel = getLocalizedString(act, "cookie_domain_more_label");
+				moreText.setText(String.format(moreLabel, moreCount));
+				moreText.setTextColor(0xFF999999);
+				moreText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10);
+				moreText.setPadding(0, dp(act, 2), 0, 0);
+				secondRow.addView(moreText);
+			}
+
+			itemLayout.addView(secondRow);
+
+			// 点击事件 - 显示该域名的Cookie列表
+			itemLayout.setOnClickListener(new View.OnClickListener() {
+				@Override
+				public void onClick(View v) {
+					showDomainCookieList(act, domainItem, ctx);
+				}
+			});
+
+			// 长按事件 - 选择/取消选择
+			itemLayout.setOnLongClickListener(new View.OnLongClickListener() {
+				@Override
+				public boolean onLongClick(View v) {
+					domainItem.selected = !domainItem.selected;
+					selectCheckbox.setChecked(domainItem.selected);
+					selectedCount[0] += domainItem.selected ? 1 : -1;
+					// 更新删除按钮状态
+					deleteButton.setEnabled(selectedCount[0] > 0);
+					deleteButton.setText(getLocalizedString(act, "cookie_manager_delete_selected"));
+					return true;
+				}
+			});
+
+			// 选择框的点击事件
+			selectCheckbox.setOnClickListener(new View.OnClickListener() {
+				@Override
+				public void onClick(View v) {
+					domainItem.selected = selectCheckbox.isChecked();
+					selectedCount[0] += domainItem.selected ? 1 : -1;
+					// 更新删除按钮状态
+					deleteButton.setEnabled(selectedCount[0] > 0);
+					deleteButton.setText(getLocalizedString(act, "cookie_manager_delete_selected"));
+				}
+			});
+		}
+
+		// 滚动到顶部
+		scrollView.post(new Runnable() {
+			@Override
+			public void run() {
+				scrollView.scrollTo(0, 0);
+			}
+		});
+	}
+
+	// populateDomainList重载方法，支持传递主列表
+	private void populateDomainList(final Activity act, LinearLayout container, List<DomainItem> domainItems,
+			final Button deleteButton, final ScrollView scrollView, final Context ctx,
+			final List<DomainItem> masterDomainList) {
+		container.removeAllViews();
+		if (domainItems.isEmpty()) {
+			TextView emptyText = new TextView(act);
+			emptyText.setText(getLocalizedString(act, "cookie_manager_empty"));
+			emptyText.setTextColor(0xFF888888);
+			emptyText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+			emptyText.setGravity(Gravity.CENTER);
+			emptyText.setPadding(0, dp(act, 32), 0, dp(act, 32));
+			container.addView(emptyText);
+			deleteButton.setEnabled(false);
+			return;
+		}
+
+		// 添加选择状态计数器
+		final int[] selectedCount = {0};
+
+		for (int i = 0; i < domainItems.size(); i++) {
+			final DomainItem domainItem = domainItems.get(i);
+			// 清理选中状态，防止删除后再次进入时仍然保持勾选状态
+			domainItem.selected = false;
+
+			// 创建域名项布局
+			LinearLayout itemLayout = new LinearLayout(act);
+			itemLayout.setOrientation(LinearLayout.VERTICAL);
+			itemLayout.setBackground(getRoundBg(act, 0xFFF8F9FA, 6));
+			itemLayout.setPadding(dp(act, 12), dp(act, 12), dp(act, 12), dp(act, 12));
+			LinearLayout.LayoutParams itemLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+					ViewGroup.LayoutParams.WRAP_CONTENT);
+			itemLp.bottomMargin = dp(act, 8);
+			container.addView(itemLayout, itemLp);
+
+			// 关联DomainItem到视图Tag
+			itemLayout.setTag(domainItem);
+
+			// 第一行：域名和选择框
+			LinearLayout firstRow = new LinearLayout(act);
+			firstRow.setOrientation(LinearLayout.HORIZONTAL);
+			firstRow.setGravity(Gravity.CENTER_VERTICAL);
+
+			// 选择框
+			final CheckBox selectCheckbox = new CheckBox(act);
+			selectCheckbox.setChecked(domainItem.selected);
+			selectCheckbox.setScaleX(0.8f);
+			selectCheckbox.setScaleY(0.8f);
+			firstRow.addView(selectCheckbox);
+
+			// 域名
+			TextView domainText = new TextView(act);
+			domainText.setText(domainItem.domain);
+			domainText.setTextColor(Color.BLACK);
+			domainText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+			domainText.setTypeface(null, Typeface.BOLD);
+			domainText.setEllipsize(TextUtils.TruncateAt.END);
+			domainText.setSingleLine(true);
+			domainText.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f));
+			firstRow.addView(domainText);
+
+			// Cookie数量
+			TextView countText = new TextView(act);
+			String countLabel = getLocalizedString(act, "cookie_domain_count_label");
+			countText.setText(String.format(countLabel, domainItem.getCookieCount()));
+			countText.setTextColor(0xFF666666);
+			countText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+			LinearLayout.LayoutParams countLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+					ViewGroup.LayoutParams.WRAP_CONTENT);
+			countLp.leftMargin = dp(act, 8);
+			firstRow.addView(countText, countLp);
+
+			itemLayout.addView(firstRow);
+
+			// 第二行：预览前几个Cookie名称
+			LinearLayout secondRow = new LinearLayout(act);
+			secondRow.setOrientation(LinearLayout.VERTICAL);
+			secondRow.setPadding(dp(act, 24), dp(act, 4), 0, 0);
+
+			// 显示前3个Cookie的名称
+			int previewCount = Math.min(3, domainItem.cookies.size());
+			for (int j = 0; j < previewCount; j++) {
+				CookieItem cookie = domainItem.cookies.get(j);
+				TextView cookiePreview = new TextView(act);
+				String cookieName = cookie.name != null && !cookie.name.isEmpty()
+						? cookie.name
+						: getLocalizedString(act, "cookie_field_unknown");
+				String cookieValue = cookie.value != null && !cookie.value.isEmpty()
+						? cookie.value
+						: getLocalizedString(act, "cookie_no_value");
+				String valueDisplay = cookieValue.length() > 20 ? cookieValue.substring(0, 20) + "..." : cookieValue;
+				cookiePreview.setText("• " + cookieName + ": " + valueDisplay);
+				cookiePreview.setTextColor(0xFF666666);
+				cookiePreview.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
+				secondRow.addView(cookiePreview);
+			}
+
+			// 如果有更多Cookie，显示"还有X个"提示
+			if (domainItem.cookies.size() > 3) {
+				TextView moreText = new TextView(act);
+				int moreCount = domainItem.cookies.size() - 3;
+				String moreLabel = getLocalizedString(act, "cookie_domain_more_label");
+				moreText.setText(String.format(moreLabel, moreCount));
+				moreText.setTextColor(0xFF999999);
+				moreText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10);
+				moreText.setPadding(0, dp(act, 2), 0, 0);
+				secondRow.addView(moreText);
+			}
+
+			itemLayout.addView(secondRow);
+
+			// 点击事件 - 显示该域名的Cookie列表
+			itemLayout.setOnClickListener(new View.OnClickListener() {
+				@Override
+				public void onClick(View v) {
+					showDomainCookieList(act, domainItem, ctx, masterDomainList);
+				}
+			});
+
+			// 长按事件 - 选择/取消选择
+			itemLayout.setOnLongClickListener(new View.OnLongClickListener() {
+				@Override
+				public boolean onLongClick(View v) {
+					domainItem.selected = !domainItem.selected;
+					selectCheckbox.setChecked(domainItem.selected);
+					selectedCount[0] += domainItem.selected ? 1 : -1;
+					// 更新删除按钮状态
+					deleteButton.setEnabled(selectedCount[0] > 0);
+					deleteButton.setText(getLocalizedString(act, "cookie_manager_delete_selected"));
+					return true;
+				}
+			});
+
+			// 选择框的点击事件
+			selectCheckbox.setOnClickListener(new View.OnClickListener() {
+				@Override
+				public void onClick(View v) {
+					domainItem.selected = selectCheckbox.isChecked();
+					selectedCount[0] += domainItem.selected ? 1 : -1;
+					// 更新删除按钮状态
+					deleteButton.setEnabled(selectedCount[0] > 0);
+					deleteButton.setText(getLocalizedString(act, "cookie_manager_delete_selected"));
+				}
+			});
+		}
+
+		// 滚动到顶部
+		scrollView.post(new Runnable() {
+			@Override
+			public void run() {
+				scrollView.scrollTo(0, 0);
+			}
+		});
+	}
+
+	/* =========================================================
+	 * 显示特定域名的Cookie列表
+	 * ======================================================= */
+	private void showDomainCookieList(final Activity act, final DomainItem domainItem, final Context ctx) {
+		showDomainCookieList(act, domainItem, ctx, null);
+	}
+
+	private void showDomainCookieList(final Activity act, final DomainItem domainItem, final Context ctx,
+			final List<DomainItem> masterDomainList) {
+		if (act.isFinishing() || act.isDestroyed())
+			return;
+
+		final Dialog dialog = new Dialog(act, android.R.style.Theme_NoTitleBar_Fullscreen);
+		dialog.setCancelable(true);
+
+		// 根布局 - 亮色背景
+		LinearLayout rootLayout = new LinearLayout(act);
+		rootLayout.setOrientation(LinearLayout.VERTICAL);
+		rootLayout.setBackgroundColor(Color.WHITE);
+
+		// 标题栏
+		RelativeLayout titleBar = new RelativeLayout(act);
+		titleBar.setBackgroundColor(0xFFF5F5F5);
+		titleBar.setPadding(dp(act, 16), dp(act, 12), dp(act, 16), dp(act, 12));
+		titleBar.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+				ViewGroup.LayoutParams.WRAP_CONTENT));
+
+		// 返回按钮
+		ImageButton backButton = new ImageButton(act);
+		backButton.setImageResource(android.R.drawable.ic_menu_revert);
+		backButton.setBackgroundResource(android.R.color.transparent);
+		backButton.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
+		backButton.setPadding(dp(act, 8), dp(act, 8), dp(act, 8), dp(act, 8));
+		backButton.setColorFilter(0xFF000000);
+		RelativeLayout.LayoutParams backButtonLp = new RelativeLayout.LayoutParams(dp(act, 48), dp(act, 48));
+		backButtonLp.addRule(RelativeLayout.ALIGN_PARENT_LEFT);
+		backButtonLp.addRule(RelativeLayout.CENTER_VERTICAL);
+		titleBar.addView(backButton, backButtonLp);
+
+		// 标题
+		TextView title = new TextView(act);
+		title.setText(domainItem.domain);
+		title.setTextColor(Color.BLACK);
+		title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18);
+		title.setTypeface(null, Typeface.BOLD);
+		title.setEllipsize(TextUtils.TruncateAt.END);
+		title.setSingleLine(true);
+		RelativeLayout.LayoutParams titleLp = new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+				ViewGroup.LayoutParams.WRAP_CONTENT);
+		titleLp.addRule(RelativeLayout.CENTER_IN_PARENT);
+		titleLp.leftMargin = dp(act, 60);
+		titleLp.rightMargin = dp(act, 60);
+		titleBar.addView(title, titleLp);
+
+		rootLayout.addView(titleBar);
+
+		// 内容区域
+		LinearLayout contentLayout = new LinearLayout(act);
+		contentLayout.setOrientation(LinearLayout.VERTICAL);
+		contentLayout.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+				ViewGroup.LayoutParams.MATCH_PARENT));
+		contentLayout.setPadding(dp(act, 16), dp(act, 16), dp(act, 16), dp(act, 16));
+
+		// 域名信息
+		LinearLayout domainInfoLayout = new LinearLayout(act);
+		domainInfoLayout.setOrientation(LinearLayout.HORIZONTAL);
+		domainInfoLayout.setGravity(Gravity.CENTER_VERTICAL);
+		domainInfoLayout.setBackground(getRoundBg(act, 0xFFF0F0F0, 6));
+		domainInfoLayout.setPadding(dp(act, 12), dp(act, 8), dp(act, 12), dp(act, 8));
+		domainInfoLayout.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+				ViewGroup.LayoutParams.WRAP_CONTENT));
+
+		TextView domainInfoText = new TextView(act);
+		String cookieCountLabel = getLocalizedString(act, "cookie_domain_total_count");
+		domainInfoText.setText(String.format(cookieCountLabel, domainItem.getCookieCount()));
+		domainInfoText.setTextColor(0xFF666666);
+		domainInfoText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+		domainInfoLayout.addView(domainInfoText);
+
+		contentLayout.addView(domainInfoLayout);
+
+		// Cookie列表容器
+		final ScrollView scrollView = new ScrollView(act);
+		scrollView.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1.0f));
+
+		final LinearLayout listContainer = new LinearLayout(act);
+		listContainer.setOrientation(LinearLayout.VERTICAL);
+		listContainer.setPadding(0, dp(act, 12), 0, 0);
+		scrollView.addView(listContainer);
+		contentLayout.addView(scrollView);
+
+		// 底部按钮栏
+		LinearLayout buttonBar = new LinearLayout(act);
+		buttonBar.setOrientation(LinearLayout.HORIZONTAL);
+		buttonBar.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+				ViewGroup.LayoutParams.WRAP_CONTENT));
+		buttonBar.setPadding(0, dp(act, 12), 0, 0);
+
+		final Button deleteDomainButton = new Button(act);
+		deleteDomainButton.setText(getLocalizedString(act, "cookie_manager_delete_selected"));
+		deleteDomainButton.setTextColor(Color.WHITE);
+		deleteDomainButton.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+		deleteDomainButton.setBackground(getRoundBg(act, 0xFFE53935, 8));
+		deleteDomainButton.setPadding(dp(act, 16), dp(act, 8), dp(act, 16), dp(act, 8));
+		deleteDomainButton.setEnabled(false);
+		LinearLayout.LayoutParams deleteDomainLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT,
+				1.0f);
+		deleteDomainLp.rightMargin = dp(act, 8);
+		buttonBar.addView(deleteDomainButton, deleteDomainLp);
+
+		Button closeButton = new Button(act);
+		closeButton.setText(getLocalizedString(act, "dialog_close"));
+		closeButton.setTextColor(Color.WHITE);
+		closeButton.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+		closeButton.setBackground(getRoundBg(act, 0xFF6200EE, 8));
+		closeButton.setPadding(dp(act, 16), dp(act, 8), dp(act, 16), dp(act, 8));
+		LinearLayout.LayoutParams closeLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f);
+		buttonBar.addView(closeButton, closeLp);
+
+		contentLayout.addView(buttonBar);
+		rootLayout.addView(contentLayout);
+		dialog.setContentView(rootLayout);
+
+		// 填充Cookie列表
+		populateCookieList(act, listContainer, domainItem.cookies, deleteDomainButton, scrollView);
+
+		// 返回按钮事件
+		backButton.setOnClickListener(new View.OnClickListener() {
+			@Override
+			public void onClick(View v) {
+				dialog.dismiss();
+			}
+		});
+
+		// 删除选中Cookie按钮事件
+		deleteDomainButton.setOnClickListener(new View.OnClickListener() {
+			@Override
+			public void onClick(View v) {
+				// 创建自定义的删除确认对话框
+				AlertDialog.Builder builder = new AlertDialog.Builder(act);
+				builder.setTitle(getLocalizedString(act, "cookie_delete_confirm_title"));
+				builder.setMessage(getLocalizedString(act, "cookie_delete_confirm_msg"));
+
+				builder.setPositiveButton(getLocalizedString(act, "cookie_manager_delete_btn"),
+						new DialogInterface.OnClickListener() {
+							@Override
+							public void onClick(final DialogInterface dialog, int which) {
+								// 执行删除操作，并添加回调
+								deleteSelectedCookies(act, listContainer, deleteDomainButton, scrollView,
+										new Runnable() {
+											@Override
+											public void run() {
+												// 删除完成后，重新从数据库加载该域名的Cookie数据
+												List<CookieItem> refreshedCookies = new ArrayList<>();
+												SQLiteDatabase db = null;
+												Cursor cursor = null;
+
+												try {
+													String cookiePath = getCookieFilePath(act);
+													db = SQLiteDatabase.openDatabase(cookiePath, null,
+															SQLiteDatabase.OPEN_READONLY);
+
+													// 查询该域名的所有Cookie
+													String selection = "host_key = ?";
+													String[] selectionArgs = {domainItem.domain};
+													cursor = db.query(COOKIE_TABLE_NAME, null, selection, selectionArgs,
+															null, null, "name");
+
+													if (cursor != null && cursor.moveToFirst()) {
+														do {
+															CookieItem item = new CookieItem();
+															item.creation_utc = getLongSafe(cursor, "creation_utc");
+															item.host_key = getStringSafe(cursor, "host_key");
+															item.name = getStringSafe(cursor, "name");
+															item.value = getStringSafe(cursor, "value");
+															item.path = getStringSafe(cursor, "path");
+															item.expires_utc = getLongSafe(cursor, "expires_utc");
+															item.is_secure = getIntSafe(cursor, "is_secure") == 1;
+															item.is_httponly = getIntSafe(cursor, "is_httponly") == 1;
+															item.last_access_utc = getLongSafe(cursor,
+																	"last_access_utc");
+															item.is_persistent = getIntSafe(cursor,
+																	"is_persistent") == 1;
+															item.selected = false; // 清理选中状态
+															refreshedCookies.add(item);
+														} while (cursor.moveToNext());
+													}
+												} catch (Exception e) {
+													XposedBridge.log("[BetterVia] 重新加载Cookie数据失败: " + e);
+												} finally {
+													if (cursor != null) {
+														cursor.close();
+													}
+													if (db != null) {
+														db.close();
+													}
+												}
+
+												// 更新域名Item的Cookie列表
+												domainItem.cookies.clear();
+												domainItem.cookies.addAll(refreshedCookies);
+
+												// 同时更新主列表中的DomainItem
+												if (masterDomainList != null) {
+													for (DomainItem masterDomainItem : masterDomainList) {
+														if (masterDomainItem.domain.equals(domainItem.domain)) {
+															masterDomainItem.cookies.clear();
+															masterDomainItem.cookies.addAll(refreshedCookies);
+															break;
+														}
+													}
+												}
+
+												// 重新填充列表
+												populateCookieList(act, listContainer, domainItem.cookies,
+														deleteDomainButton, scrollView);
+
+												// 如果域名下没有Cookie了，关闭对话框
+												if (domainItem.cookies.isEmpty()) {
+													dialog.dismiss();
+													Toast.makeText(act,
+															String.format(
+																	getLocalizedString(act,
+																			"cookie_domain_delete_success"),
+																	domainItem.domain, 0),
+															Toast.LENGTH_SHORT).show();
+												}
+											}
+										});
+							}
+						});
+
+				builder.setNegativeButton(getLocalizedString(act, "dialog_cancel"),
+						new DialogInterface.OnClickListener() {
+							@Override
+							public void onClick(DialogInterface dialog, int which) {
+								dialog.dismiss();
+							}
+						});
+
+				builder.show();
+			}
+		});
+
+		// 关闭按钮事件
+		closeButton.setOnClickListener(new View.OnClickListener() {
+			@Override
+			public void onClick(View v) {
+				dialog.dismiss();
+			}
+		});
+
+		dialog.show();
+	}
+
+	/* =========================================================
 	 * 显示删除确认对话框
 	 * ======================================================= */
 	private void showDeleteConfirmDialog(final Activity act, final Context ctx, final LinearLayout listContainer,
-			final Button deleteButton, final ScrollView scrollView) {
+			final Button deleteButton, final ScrollView scrollView, final boolean isDomainView) {
 		AlertDialog.Builder builder = new AlertDialog.Builder(act);
 		builder.setTitle(getLocalizedString(ctx, "cookie_delete_confirm_title"));
-		builder.setMessage(getLocalizedString(ctx, "cookie_delete_confirm_msg"));
+
+		// 根据视图模式显示不同的确认消息
+		String confirmMsg;
+		if (isDomainView) {
+			confirmMsg = getLocalizedString(ctx, "cookie_domain_delete_selected_confirm_msg");
+		} else {
+			confirmMsg = getLocalizedString(ctx, "cookie_delete_confirm_msg");
+		}
+		builder.setMessage(confirmMsg);
 
 		builder.setPositiveButton(getLocalizedString(ctx, "cookie_manager_delete_btn"),
 				new DialogInterface.OnClickListener() {
 					@Override
 					public void onClick(DialogInterface dialog, int which) {
 						// 执行删除操作
-						deleteSelectedCookies(act, listContainer, deleteButton, scrollView);
+						if (isDomainView) {
+							deleteSelectedDomains(act, listContainer, deleteButton, scrollView);
+						} else {
+							deleteSelectedCookies(act, listContainer, deleteButton, scrollView);
+						}
 					}
 				});
 
@@ -5950,6 +6941,12 @@ public class Hook implements IXposedHookLoadPackage {
 	 * ======================================================= */
 	private void deleteSelectedCookies(final Activity act, final LinearLayout listContainer, final Button deleteButton,
 			final ScrollView scrollView) {
+		deleteSelectedCookies(act, listContainer, deleteButton, scrollView, null);
+	}
+
+	// 删除选中的Cookie（带回调）
+	private void deleteSelectedCookies(final Activity act, final LinearLayout listContainer, final Button deleteButton,
+			final ScrollView scrollView, final Runnable onCompleteCallback) {
 		new Thread(new Runnable() {
 			@Override
 			public void run() {
@@ -5982,7 +6979,7 @@ public class Hook implements IXposedHookLoadPackage {
 					}
 
 				} catch (Exception e) {
-					XposedBridge.log("批量删除Cookie失败: " + e);
+					XposedBridge.log("[BetterVia] 批量删除Cookie失败: " + e);
 				} finally {
 					if (db != null) {
 						db.close();
@@ -5999,15 +6996,112 @@ public class Hook implements IXposedHookLoadPackage {
 								removeDeletedCookieFromList(act, listContainer, deleteButton, scrollView, deletedItem);
 							}
 
-							Toast.makeText(act, "已删除选中的Cookie", Toast.LENGTH_SHORT).show();
+							Toast.makeText(act, getLocalizedString(act, "cookie_delete_success"), Toast.LENGTH_SHORT)
+									.show();
 						} else {
-							Toast.makeText(act, "没有选中要删除的Cookie", Toast.LENGTH_SHORT).show();
+							Toast.makeText(act, getLocalizedString(act, "cookie_delete_no_selected"),
+									Toast.LENGTH_SHORT).show();
+						}
+
+						// 执行回调（如果存在）
+						if (onCompleteCallback != null) {
+							onCompleteCallback.run();
 						}
 					}
 				});
 			}
 		}).start();
 	}
+
+	/* =========================================================
+	 * 删除选中域名下的所有Cookie
+	 * ======================================================= */
+	private void deleteSelectedDomains(final Activity act, final LinearLayout listContainer, final Button deleteButton,
+			final ScrollView scrollView) {
+		new Thread(new Runnable() {
+			@Override
+			public void run() {
+				SQLiteDatabase db = null;
+				final List<DomainItem> deletedDomains = new ArrayList<>();
+				final List<CookieItem> deletedCookies = new ArrayList<>();
+
+				try {
+					String cookiePath = getCookieFilePath(act);
+					db = SQLiteDatabase.openDatabase(cookiePath, null, SQLiteDatabase.OPEN_READWRITE);
+					db.beginTransaction();
+
+					try {
+						// 收集要删除的域名及其Cookie
+						for (int i = 0; i < listContainer.getChildCount(); i++) {
+							View child = listContainer.getChildAt(i);
+							if (child instanceof LinearLayout && child.getTag() instanceof DomainItem) {
+								DomainItem domainItem = (DomainItem) child.getTag();
+								if (domainItem.selected) {
+									// 删除该域名下的所有Cookie
+									for (CookieItem cookie : domainItem.cookies) {
+										String whereClause = "creation_utc = ? AND host_key = ? AND name = ?";
+										String[] whereArgs = {String.valueOf(cookie.creation_utc), cookie.host_key,
+												cookie.name};
+										db.delete(COOKIE_TABLE_NAME, whereClause, whereArgs);
+										deletedCookies.add(cookie);
+									}
+									deletedDomains.add(domainItem);
+								}
+							}
+						}
+						db.setTransactionSuccessful();
+					} finally {
+						db.endTransaction();
+					}
+
+				} catch (Exception e) {
+					XposedBridge.log("[BetterVia] 批量删除域名Cookie失败: " + e);
+				} finally {
+					if (db != null) {
+						db.close();
+					}
+				}
+
+				final int finalDomainCount = deletedDomains.size();
+				final int finalCookieCount = deletedCookies.size();
+				act.runOnUiThread(new Runnable() {
+					@Override
+					public void run() {
+						if (finalDomainCount > 0) {
+							// 从界面移除被删除的域名项
+							for (int i = listContainer.getChildCount() - 1; i >= 0; i--) {
+								View child = listContainer.getChildAt(i);
+								if (child instanceof LinearLayout && child.getTag() instanceof DomainItem) {
+									DomainItem domainItem = (DomainItem) child.getTag();
+									if (domainItem.selected) {
+										listContainer.removeViewAt(i);
+									}
+								}
+							}
+
+							// 更新删除按钮状态
+							updateDeleteButtonState(act, listContainer, deleteButton);
+
+							// 显示成功消息
+							String successMsg = String.format(
+									getLocalizedString(act, "cookie_domain_delete_selected_success"), finalDomainCount,
+									finalCookieCount);
+							Toast.makeText(act, successMsg, Toast.LENGTH_SHORT).show();
+
+							// 如果列表为空，显示空状态
+							if (listContainer.getChildCount() == 0) {
+								showEmptyCookieListState(act, listContainer);
+							}
+						} else {
+							Toast.makeText(act, getLocalizedString(act, "cookie_delete_no_selected"),
+									Toast.LENGTH_SHORT).show();
+						}
+					}
+				});
+			}
+		}).start();
+	}
+
 	/* ================== 编辑器状态缓存 ================== */
 	private static Map<String, EditorState> editorStateCache = new HashMap<>();
 
@@ -6107,7 +7201,7 @@ public class Hook implements IXposedHookLoadPackage {
 					writer.close();
 
 				} catch (Exception e) {
-					XposedBridge.log("保存文件失败: " + e);
+					XposedBridge.log("[BetterVia] 保存文件失败: " + e);
 				}
 			}
 		}).start();
@@ -6168,7 +7262,7 @@ public class Hook implements IXposedHookLoadPackage {
 			}
 
 		} catch (Exception e) {
-			XposedBridge.log("读取Cookie数据失败: " + e);
+			XposedBridge.log("[BetterVia] 读取Cookie数据失败: " + e);
 		} finally {
 			if (cursor != null) {
 				cursor.close();
@@ -6179,6 +7273,44 @@ public class Hook implements IXposedHookLoadPackage {
 		}
 
 		return cookieItems;
+	}
+
+	/* =========================================================
+	 * 加载并按域名分组的Cookie数据
+	 * ======================================================= */
+	private List<DomainItem> loadDomainGroupedCookieData(Context ctx) {
+		List<DomainItem> domainItems = new ArrayList<>();
+		Map<String, DomainItem> domainMap = new HashMap<>();
+
+		// 先加载所有Cookie数据
+		List<CookieItem> cookieItems = loadCookieData(ctx);
+
+		// 按域名分组
+		for (CookieItem cookie : cookieItems) {
+			String domain = cookie.host_key;
+			if (domain == null || domain.isEmpty()) {
+				domain = getLocalizedString(ctx, "cookie_unknown_domain");
+			}
+
+			DomainItem domainItem = domainMap.get(domain);
+			if (domainItem == null) {
+				domainItem = new DomainItem(domain);
+				domainMap.put(domain, domainItem);
+				domainItems.add(domainItem);
+			}
+
+			domainItem.addCookie(cookie);
+		}
+
+		// 按域名排序
+		Collections.sort(domainItems, new Comparator<DomainItem>() {
+			@Override
+			public int compare(DomainItem d1, DomainItem d2) {
+				return d1.domain.compareToIgnoreCase(d2.domain);
+			}
+		});
+
+		return domainItems;
 	}
 
 	/* =========================================================
@@ -6272,6 +7404,29 @@ public class Hook implements IXposedHookLoadPackage {
 			this.path = "";
 			this.top_frame_site_key = "";
 			this.encrypted_value = "";
+		}
+	}
+
+	/* =========================================================
+	 * 域名分组数据项类
+	 * ======================================================= */
+	private static class DomainItem {
+		String domain;
+		List<CookieItem> cookies;
+		boolean selected;
+
+		DomainItem(String domain) {
+			this.domain = domain;
+			this.cookies = new ArrayList<>();
+			this.selected = false;
+		}
+
+		void addCookie(CookieItem cookie) {
+			cookies.add(cookie);
+		}
+
+		int getCookieCount() {
+			return cookies.size();
 		}
 	}
 
@@ -6627,7 +7782,7 @@ public class Hook implements IXposedHookLoadPackage {
 	}
 
 	private void hookHomepageBgWithMask(final Context ctx, ClassLoader cl, final String imgPath, final int maskColor) {
-		XposedHelpers.findAndHookMethod("k.a.a0.l.c", cl, "g", Context.class, List.class, boolean.class,
+		XposedHelpers.findAndHookMethod("k.a.c0.l.c", cl, "g", Context.class, List.class, boolean.class,
 				new XC_MethodHook() {
 					@Override
 					protected void afterHookedMethod(MethodHookParam param) throws Throwable {
@@ -6658,14 +7813,14 @@ public class Hook implements IXposedHookLoadPackage {
 						int rgbColor = getPrefInt(ctx, KEY_HOMEPAGE_MASK_C, 0x000000);
 
 						// 调试信息
-						XposedBridge.log("BetterVia: Alpha: " + alpha + ", RGB: " + Integer.toHexString(rgbColor));
+						XposedBridge.log("[BetterVia] 读取设置透明度: " + alpha + ", 颜色值: " + Integer.toHexString(rgbColor));
 
 						// 使用正确的颜色格式
 						String cssColor = colorToCssString(alpha, rgbColor);
 						// 或者使用 RGBA 格式（推荐，更兼容）
 						// String cssColor = colorToRgbaString(alpha, rgbColor);
 
-						XposedBridge.log("BetterVia: CSS Color: " + cssColor);
+						XposedBridge.log("[BetterVia] 最终颜色值转换: " + cssColor);
 
 						// 构建背景样式
 						String backgroundStyle;
@@ -6691,9 +7846,9 @@ public class Hook implements IXposedHookLoadPackage {
 						try {
 							fw = new FileWriter(html);
 							fw.write(modifiedHtml);
-							XposedBridge.log("BetterVia: Successfully applied background with correct color format");
+							XposedBridge.log("[BetterVia] 成功应用具有正确颜色格式的背景");
 						} catch (Exception e) {
-							XposedBridge.log("BetterVia: Error writing modified HTML: " + e);
+							XposedBridge.log("[BetterVia] 写入修改HTML时出错: " + e);
 						} finally {
 							if (fw != null)
 								try {
@@ -6754,7 +7909,7 @@ public class Hook implements IXposedHookLoadPackage {
 			putPrefString(act, KEY_HOMEPAGE_BG, homepageBgPath);
 			return true;
 		} catch (Exception e) {
-			XposedBridge.log("saveUserImage error: " + e);
+			XposedBridge.log("[BetterVia] 保存用户图片时出现错误: " + e);
 			return false;
 		} finally {
 			if (in != null)
@@ -7116,9 +8271,762 @@ public class Hook implements IXposedHookLoadPackage {
 	}
 
 	/* =========================================================
+	 * 下载对话框分享按钮 Hook 动态开关
+	 * ======================================================= */
+	private void setDownloadDialogShareHook(Context ctx, ClassLoader cl, boolean on) {
+		if (on) {
+			if (downloadDialogShareHook == null) {
+				// 启用下载对话框分享功能
+				addShareButtonToDownloadDialog(ctx, cl);
+				downloadDialogShareEnabled = true;
+				XposedBridge.log("[BetterVia] 下载对话框分享按钮已启用");
+			}
+		} else {
+			if (downloadDialogShareHook != null) {
+				// 注意：由于是动态添加按钮，无法完全"卸载"，但可以停止添加新按钮
+				downloadDialogShareHook.unhook();
+				downloadDialogShareHook = null;
+				XposedBridge.log("[BetterVia] 下载对话框分享按钮已停用");
+			}
+			downloadDialogShareEnabled = false;
+		}
+		putPrefBoolean(ctx, KEY_DOWNLOAD_DIALOG_SHARE, on);
+
+	}
+
+	/* =========================================================
+	 * 在下载确认对话框中添加分享按钮（受开关控制）
+	 * ======================================================= */
+	private void addShareButtonToDownloadDialog(final Context ctx, ClassLoader cl) {
+		try {
+			// 方法1：尝试Hook Dialog的show方法
+			downloadDialogShareHook = XposedHelpers.findAndHookMethod(Dialog.class, "show", new XC_MethodHook() {
+				@Override
+				protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+					try {
+						final Dialog dialog = (Dialog) param.thisObject;
+
+						// 检查开关状态
+						if (!downloadDialogShareEnabled) {
+							return;
+						}
+
+						// 检查是否是Via的下载对话框
+						if (isViaDownloadDialog(dialog)) {
+							// 延迟一小段时间，确保对话框布局完全加载
+							new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+								@Override
+								public void run() {
+									try {
+										addShareButtonToDialog(dialog, ctx);
+									} catch (Exception e) {
+										XposedBridge.log("[BetterVia] 添加分享按钮异常: " + e);
+									}
+								}
+							}, 100);
+						}
+					} catch (Exception e) {
+						XposedBridge.log("[BetterVia] Hook Dialog.show失败: " + e);
+					}
+				}
+			});
+
+			// 方法2：尝试Hook AlertDialog的创建过程
+			XposedHelpers.findAndHookMethod(AlertDialog.Builder.class, "create", new XC_MethodHook() {
+				@Override
+				protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+					try {
+						final AlertDialog dialog = (AlertDialog) param.getResult();
+						if (dialog == null)
+							return;
+
+						// 检查开关状态
+						if (!downloadDialogShareEnabled) {
+							return;
+						}
+
+						// 设置对话框显示监听器
+						dialog.setOnShowListener(new DialogInterface.OnShowListener() {
+							@Override
+							public void onShow(DialogInterface dialogInterface) {
+								try {
+									if (isViaDownloadDialog(dialog)) {
+										addShareButtonToDialog(dialog, ctx);
+									}
+								} catch (Exception e) {
+									XposedBridge.log("[BetterVia] AlertDialog显示监听异常: " + e);
+								}
+							}
+						});
+					} catch (Exception e) {
+						XposedBridge.log("[BetterVia] Hook AlertDialog.create失败: " + e);
+					}
+				}
+			});
+
+			XposedBridge.log("[BetterVia] 下载对话框分享按钮Hook已启用");
+
+		} catch (Throwable t) {
+			XposedBridge.log("[BetterVia] Hook下载对话框失败: " + t);
+		}
+	}
+
+	/* =========================================================
+	 * 检查是否是Via的下载对话框
+	 * ======================================================= */
+	private boolean isViaDownloadDialog(Dialog dialog) {
+		try {
+			// 通过按钮ID来识别下载对话框
+			View copyLinkButton = dialog.findViewById(0x7f0900c7); // 复制链接按钮
+			View cancelButton = dialog.findViewById(0x7f0900c6); // 取消按钮
+			View okButton = dialog.findViewById(0x7f0900cb); // 确定按钮
+
+			// 如果找到这些特定ID的按钮，就认为是下载对话框
+			return copyLinkButton != null && cancelButton != null && okButton != null;
+
+		} catch (Exception e) {
+			return false;
+		}
+	}
+
+	/* =========================================================
+	 * 递归查找按钮容器
+	 * ======================================================= */
+	private ViewGroup findButtonContainerRecursive(View view) {
+		if (!(view instanceof ViewGroup))
+			return null;
+
+		ViewGroup group = (ViewGroup) view;
+
+		// 检查当前ViewGroup是否包含按钮
+		int buttonCount = 0;
+		for (int i = 0; i < group.getChildCount(); i++) {
+			View child = group.getChildAt(i);
+			if (child instanceof Button) {
+				buttonCount++;
+			}
+		}
+
+		// 如果找到包含多个按钮的容器，返回它
+		if (buttonCount >= 2) {
+			return group;
+		}
+
+		// 递归查找子视图
+		for (int i = 0; i < group.getChildCount(); i++) {
+			View child = group.getChildAt(i);
+			if (child instanceof ViewGroup) {
+				ViewGroup result = findButtonContainerRecursive(child);
+				if (result != null) {
+					return result;
+				}
+			}
+		}
+
+		return null;
+	}
+
+	/* =========================================================
+	 * 设置分享按钮点击事件
+	 * ======================================================= */
+	private void setupShareButtonClick(TextView shareButton, final Dialog dialog, final Context ctx) {
+		shareButton.setOnClickListener(new View.OnClickListener() {
+			@Override
+			public void onClick(View v) {
+				try {
+					XposedBridge.log("[BetterVia] 分享按钮被点击");
+
+					// 移除点击效果，不设置setPressed状态
+
+					// 提取下载信息
+					String[] downloadInfo = extractDownloadInfoFromDialog(dialog, ctx);
+					String fileName = downloadInfo[0];
+					String fileUrl = downloadInfo[1];
+					String fileSize = downloadInfo[2];
+
+					XposedBridge.log("[BetterVia] 提取到的下载信息 - 文件名: " + fileName + ", 大小: " + fileSize + ", URL: "
+							+ (fileUrl.isEmpty() ? "空" : "已获取"));
+
+					// 检查URL是否为空
+					if (fileUrl.isEmpty()) {
+						Toast.makeText(ctx, "无法获取下载链接", Toast.LENGTH_SHORT).show();
+						return;
+					}
+
+					// 创建分享内容（只包含URL）
+					String shareText = createShareText(fileName, fileSize, fileUrl, ctx);
+
+					// 创建分享Intent
+					Intent shareIntent = new Intent(Intent.ACTION_SEND);
+					shareIntent.setType("text/plain");
+					shareIntent.putExtra(Intent.EXTRA_TEXT, shareText);
+
+					// 启动分享选择器
+					Intent chooser = Intent.createChooser(shareIntent, "分享下载链接");
+					chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+
+					ctx.startActivity(chooser);
+
+					// 显示成功提示
+					Toast.makeText(ctx, "正在分享下载链接", Toast.LENGTH_SHORT).show();
+
+				} catch (Exception e) {
+					XposedBridge.log("[BetterVia] 分享失败: " + e);
+					Toast.makeText(ctx, "分享失败", Toast.LENGTH_SHORT).show();
+				}
+			}
+		});
+	}
+
+	/* =========================================================
+	 * 将分享按钮插入到容器中
+	 * ======================================================= */
+	private void insertShareButtonToContainer(ViewGroup container, TextView shareButton, Dialog dialog) {
+		try {
+			// 查找"复制链接"按钮
+			View copyLinkButton = dialog.findViewById(0x7f0900c7);
+			if (copyLinkButton == null) {
+				XposedBridge.log("[BetterVia] 未找到复制链接按钮，无法确定插入位置");
+				return;
+			}
+
+			// 查找"确定"和"取消"按钮，获取它们之间的间距
+			View okButton = dialog.findViewById(0x7f0900cb);
+			View cancelButton = dialog.findViewById(0x7f0900c6);
+
+			// 获取"确定"和"取消"按钮之间的间距作为参考
+			int referenceMargin = dp(dialog.getContext(), 8); // 默认8dp
+			if (okButton != null && cancelButton != null) {
+				// 尝试获取"确定"按钮的右边距
+				if (okButton.getLayoutParams() instanceof ViewGroup.MarginLayoutParams) {
+					ViewGroup.MarginLayoutParams okParams = (ViewGroup.MarginLayoutParams) okButton.getLayoutParams();
+					referenceMargin = okParams.rightMargin;
+					XposedBridge.log("[BetterVia] 获取到确定按钮的右边距: " + referenceMargin + "px");
+				}
+			}
+
+			// 获取"复制链接"按钮在容器中的位置
+			int copyLinkIndex = -1;
+			for (int i = 0; i < container.getChildCount(); i++) {
+				if (container.getChildAt(i) == copyLinkButton) {
+					copyLinkIndex = i;
+					break;
+				}
+			}
+
+			if (copyLinkIndex == -1) {
+				XposedBridge.log("[BetterVia] 复制链接按钮不在容器中");
+				return;
+			}
+
+			// 针对RelativeLayout的特殊处理
+			if (container instanceof RelativeLayout) {
+				XposedBridge.log("[BetterVia] 检测到RelativeLayout容器，设置分享按钮在复制链接按钮右侧，间距: " + referenceMargin + "px");
+
+				// 创建RelativeLayout.LayoutParams
+				RelativeLayout.LayoutParams params = new RelativeLayout.LayoutParams(
+						ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+
+				// 设置布局规则：位于复制链接按钮右侧
+				params.addRule(RelativeLayout.ALIGN_TOP, copyLinkButton.getId());
+				params.addRule(RelativeLayout.ALIGN_BOTTOM, copyLinkButton.getId());
+				params.addRule(RelativeLayout.RIGHT_OF, copyLinkButton.getId());
+
+				// 设置与复制链接按钮相同的高度和边距
+				if (copyLinkButton.getLayoutParams() instanceof ViewGroup.MarginLayoutParams) {
+					ViewGroup.MarginLayoutParams refParams = (ViewGroup.MarginLayoutParams) copyLinkButton
+							.getLayoutParams();
+
+					// 使用参考间距作为左边距
+					params.setMargins(referenceMargin, // 使用参考间距
+							refParams.topMargin, refParams.rightMargin, refParams.bottomMargin);
+
+					// 设置相同的高度
+					params.height = refParams.height;
+
+				} else {
+					// 默认边距，使用参考间距
+					params.setMargins(referenceMargin, 0, 0, 0);
+				}
+
+				shareButton.setLayoutParams(params);
+
+			} else if (container instanceof LinearLayout) {
+				// 原有的LinearLayout处理逻辑
+				LinearLayout.LayoutParams refParams = (LinearLayout.LayoutParams) copyLinkButton.getLayoutParams();
+				LinearLayout.LayoutParams newParams = new LinearLayout.LayoutParams(refParams.width, refParams.height,
+						refParams.weight);
+				newParams.setMargins(refParams.leftMargin, refParams.topMargin, refParams.rightMargin,
+						refParams.bottomMargin);
+				newParams.gravity = refParams.gravity;
+				shareButton.setLayoutParams(newParams);
+			} else {
+				// 其他布局类型，使用默认参数
+				ViewGroup.LayoutParams refParams = copyLinkButton.getLayoutParams();
+				ViewGroup.LayoutParams newParams = new ViewGroup.LayoutParams(refParams.width, refParams.height);
+				shareButton.setLayoutParams(newParams);
+			}
+
+			// 在"复制链接"按钮之后插入分享按钮
+			container.addView(shareButton, copyLinkIndex + 1);
+			XposedBridge.log("[BetterVia] 分享按钮已插入到位置: " + (copyLinkIndex + 1));
+
+			// 强制重新布局
+			container.requestLayout();
+
+		} catch (Exception e) {
+			XposedBridge.log("[BetterVia] 插入分享按钮失败: " + e);
+
+			// 备用方案：使用最简单的布局参数
+			try {
+				ViewGroup.LayoutParams simpleParams = new ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+						ViewGroup.LayoutParams.WRAP_CONTENT);
+				shareButton.setLayoutParams(simpleParams);
+				container.addView(shareButton);
+			} catch (Exception e2) {
+				XposedBridge.log("[BetterVia] 备用方案也失败: " + e2);
+			}
+		}
+	}
+
+	/* =========================================================
+	 * 确保每个按钮有独立的背景Drawable
+	 * ======================================================= */
+
+	/* =========================================================
+	 * 创建分享按钮
+	 * ======================================================= */
+	private TextView createShareButton(Context ctx, Dialog dialog) {
+		try {
+			// 获取"复制链接"按钮作为样式参考
+			View copyLinkButton = dialog.findViewById(0x7f0900c7);
+			if (copyLinkButton == null) {
+				XposedBridge.log("[BetterVia] 未找到复制链接按钮，无法获取样式");
+				return null;
+			}
+
+			// 创建TextView
+			TextView shareButton = new TextView(ctx);
+			shareButton.setId(0x7f09abcd);
+			shareButton.setClickable(true);
+			shareButton.setFocusable(true);
+
+			// 设置按钮文本
+			shareButton.setText(getLocalizedString(ctx, "download_dialog_share"));
+			shareButton.setTextSize(14);
+			shareButton.setGravity(Gravity.CENTER);
+
+			// 复制文本颜色
+			if (copyLinkButton instanceof TextView) {
+				TextView refTextView = (TextView) copyLinkButton;
+				shareButton.setTextColor(refTextView.getTextColors());
+				shareButton.setTextSize(TypedValue.COMPLEX_UNIT_PX, refTextView.getTextSize());
+			} else {
+				shareButton.setTextColor(0xFF6200EE);
+			}
+
+			// 复制背景 - 确保使用独立的Drawable实例
+			Drawable refBackground = copyLinkButton.getBackground();
+			if (refBackground != null) {
+				try {
+					// 使用mutate()创建独立的Drawable实例
+					Drawable backgroundCopy = refBackground.getConstantState().newDrawable().mutate();
+					shareButton.setBackground(backgroundCopy);
+					XposedBridge.log("[BetterVia] 已创建独立的背景Drawable");
+				} catch (Exception e) {
+					// 如果mutate失败，使用原始背景
+					XposedBridge.log("[BetterVia] 创建独立Drawable失败，使用原始背景: " + e);
+					shareButton.setBackground(refBackground);
+				}
+			}
+
+			// 复制内边距
+			shareButton.setPadding(copyLinkButton.getPaddingLeft(), copyLinkButton.getPaddingTop(),
+					copyLinkButton.getPaddingRight(), copyLinkButton.getPaddingBottom());
+
+			return shareButton;
+
+		} catch (Exception e) {
+			XposedBridge.log("[BetterVia] 创建分享按钮失败: " + e);
+			return null;
+		}
+	}
+
+	/* =========================================================
+	 * 修复复制链接按钮的背景状态
+	 * ======================================================= */
+	private void fixCopyLinkButtonBackground(Dialog dialog) {
+		try {
+			View copyLinkButton = dialog.findViewById(0x7f0900c7);
+			if (copyLinkButton == null)
+				return;
+
+			// 检查复制链接按钮的背景是否被共享
+			Drawable background = copyLinkButton.getBackground();
+			if (background != null) {
+				// 为复制链接按钮也创建一个独立的背景实例
+				Drawable independentBackground = background.getConstantState().newDrawable().mutate();
+				copyLinkButton.setBackground(independentBackground);
+				XposedBridge.log("[BetterVia] 已修复复制链接按钮的背景状态");
+			}
+		} catch (Exception e) {
+			XposedBridge.log("[BetterVia] 修复复制链接按钮背景失败: " + e);
+		}
+	}
+
+	/* =========================================================
+	 * 向对话框添加分享按钮
+	 * ======================================================= */
+	private void addShareButtonToDialog(final Dialog dialog, final Context ctx) {
+		try {
+			// 检查是否已经添加过分享按钮
+			if (dialog.findViewById(0x7f09abcd) != null) {
+				XposedBridge.log("[BetterVia] 分享按钮已存在，跳过添加");
+				return;
+			}
+
+			// 先修复复制链接按钮的背景状态
+			fixCopyLinkButtonBackground(dialog);
+
+			// 查找按钮容器
+			ViewGroup buttonContainer = findButtonContainer(dialog);
+			if (buttonContainer == null) {
+				XposedBridge.log("[BetterVia] 未找到按钮容器");
+				return;
+			}
+
+			XposedBridge.log("[BetterVia] 找到按钮容器，类型: " + buttonContainer.getClass().getSimpleName() + ", 子视图数量: "
+					+ buttonContainer.getChildCount());
+
+			// 记录当前容器中的所有按钮信息
+			logButtonInfo(buttonContainer, "添加分享按钮前");
+
+			// 创建分享按钮
+			TextView shareButton = createShareButton(ctx, dialog);
+			if (shareButton == null) {
+				XposedBridge.log("[BetterVia] 创建分享按钮失败");
+				return;
+			}
+
+			// 将分享按钮插入到正确位置
+			insertShareButtonToContainer(buttonContainer, shareButton, dialog);
+
+			// 设置点击事件
+			setupShareButtonClick(shareButton, dialog, ctx);
+
+			XposedBridge.log("[BetterVia] 成功添加TextView分享按钮到下载对话框");
+
+			// 记录添加后的状态
+			logButtonInfo(buttonContainer, "添加分享按钮后");
+
+		} catch (Exception e) {
+			XposedBridge.log("[BetterVia] 添加分享按钮到对话框失败: " + e);
+		}
+	}
+
+	/* =========================================================
+	 * 查找按钮容器
+	 * ======================================================= */
+	private ViewGroup findButtonContainer(Dialog dialog) {
+		try {
+			// 首先尝试通过已知按钮ID查找父容器
+			View copyLinkButton = dialog.findViewById(0x7f0900c7);
+			View cancelButton = dialog.findViewById(0x7f0900c6);
+			View okButton = dialog.findViewById(0x7f0900cb);
+
+			if (copyLinkButton != null) {
+				// 查找包含所有三个按钮的最小父容器
+				ViewGroup parent = (ViewGroup) copyLinkButton.getParent();
+				while (parent != null) {
+					// 检查这个父容器是否包含所有按钮
+					boolean hasCopyLink = parent.indexOfChild(copyLinkButton) >= 0;
+					boolean hasCancel = parent.indexOfChild(cancelButton) >= 0;
+					boolean hasOk = parent.indexOfChild(okButton) >= 0;
+
+					if (hasCopyLink && hasCancel && hasOk) {
+						XposedBridge.log("[BetterVia] 找到包含所有按钮的容器: " + parent.getClass().getSimpleName());
+						return parent;
+					}
+
+					// 继续向上查找
+					if (parent.getParent() instanceof ViewGroup) {
+						parent = (ViewGroup) parent.getParent();
+					} else {
+						break;
+					}
+				}
+			}
+
+			// 备用方案：直接查找水平布局的容器
+			View decorView = dialog.getWindow().getDecorView();
+			return findHorizontalButtonContainer(decorView);
+
+		} catch (Exception e) {
+			XposedBridge.log("[BetterVia] 查找按钮容器失败: " + e);
+			return null;
+		}
+	}
+
+	/* =========================================================
+	 * 查找水平按钮容器
+	 * ======================================================= */
+	private ViewGroup findHorizontalButtonContainer(View view) {
+		if (!(view instanceof ViewGroup))
+			return null;
+
+		ViewGroup group = (ViewGroup) view;
+
+		// 检查是否是水平LinearLayout且包含多个按钮
+		if (group instanceof LinearLayout) {
+			LinearLayout layout = (LinearLayout) group;
+			if (layout.getOrientation() == LinearLayout.HORIZONTAL) {
+				int buttonCount = 0;
+				for (int i = 0; i < layout.getChildCount(); i++) {
+					View child = layout.getChildAt(i);
+					if (child instanceof TextView && child.isClickable()) {
+						buttonCount++;
+					}
+				}
+				if (buttonCount >= 2) {
+					XposedBridge.log("[BetterVia] 找到水平按钮容器，按钮数量: " + buttonCount);
+					return layout;
+				}
+			}
+		}
+
+		// 递归查找子视图
+		for (int i = 0; i < group.getChildCount(); i++) {
+			View child = group.getChildAt(i);
+			ViewGroup result = findHorizontalButtonContainer(child);
+			if (result != null) {
+				return result;
+			}
+		}
+
+		return null;
+	}
+
+	/* =========================================================
+	 * 记录按钮信息用于调试
+	 * ======================================================= */
+	private void logButtonInfo(ViewGroup container, String stage) {
+		try {
+			XposedBridge.log("[BetterVia] " + stage + " - 容器类型: " + container.getClass().getSimpleName() + ", 子视图数量: "
+					+ container.getChildCount());
+
+			for (int i = 0; i < container.getChildCount(); i++) {
+				View child = container.getChildAt(i);
+				String info = "子视图 " + i + ": " + child.getClass().getSimpleName();
+
+				if (child instanceof TextView) {
+					TextView textView = (TextView) child;
+					info += " 文本: \"" + textView.getText() + "\"";
+					info += " ID: " + Integer.toHexString(child.getId());
+					info += " 可点击: " + child.isClickable();
+
+					// 记录布局参数
+					ViewGroup.LayoutParams params = child.getLayoutParams();
+					if (params instanceof LinearLayout.LayoutParams) {
+						LinearLayout.LayoutParams llParams = (LinearLayout.LayoutParams) params;
+						info += " 权重: " + llParams.weight;
+						info += " 宽度: " + llParams.width;
+					}
+				}
+
+				info += " 可见: " + (child.getVisibility() == View.VISIBLE);
+				XposedBridge.log("[BetterVia] " + info);
+			}
+		} catch (Exception e) {
+			XposedBridge.log("[BetterVia] 记录按钮信息失败: " + e);
+		}
+	}
+
+	/* =========================================================
+	 * 检查视图是否是另一个视图的祖先
+	 * ======================================================= */
+	private boolean isAncestor(ViewGroup ancestor, View descendant) {
+		ViewParent parent = descendant.getParent();
+		while (parent != null) {
+			if (parent == ancestor) {
+				return true;
+			}
+			parent = parent.getParent();
+		}
+		return false;
+	}
+
+	/* =========================================================
+	 * 从对话框提取下载信息
+	 * ======================================================= */
+	private String[] extractDownloadInfoFromDialog(Dialog dialog, Context ctx) {
+		String[] info = {"未知文件", "", "未知大小"};
+
+		try {
+			View decorView = dialog.getWindow().getDecorView();
+
+			// 查找包含文件信息的TextView
+			List<TextView> textViews = findAllTextViews(decorView);
+
+			for (TextView textView : textViews) {
+				String text = textView.getText().toString().trim();
+
+				// 跳过按钮文本和空文本
+				if (TextUtils.isEmpty(text) || isButtonText(text)) {
+					continue;
+				}
+
+				// 根据文本内容判断类型
+				if (text.contains(".") && text.length() > 3) {
+					// 可能是文件名
+					info[0] = text;
+				} else if (text.contains("MB") || text.contains("KB") || text.contains("GB") || text.contains("字节")
+						|| text.contains("B") || text.matches(".*\\d+.*")) {
+					// 可能是文件大小
+					info[2] = text;
+				}
+			}
+
+			// 尝试从对话框的tag或额外数据中获取URL
+			info[1] = extractUrlFromDialog(dialog);
+
+		} catch (Exception e) {
+			XposedBridge.log("[BetterVia] 提取下载信息失败: " + e);
+		}
+
+		return info;
+	}
+
+	/* =========================================================
+	 * 查找所有TextView
+	 * ======================================================= */
+	private List<TextView> findAllTextViews(View view) {
+		List<TextView> textViews = new ArrayList<>();
+
+		if (view instanceof TextView) {
+			textViews.add((TextView) view);
+		} else if (view instanceof ViewGroup) {
+			ViewGroup group = (ViewGroup) view;
+			for (int i = 0; i < group.getChildCount(); i++) {
+				textViews.addAll(findAllTextViews(group.getChildAt(i)));
+			}
+		}
+
+		return textViews;
+	}
+
+	/* =========================================================
+	 * 判断是否为按钮文本
+	 * ======================================================= */
+	private boolean isButtonText(String text) {
+		String[] buttonTexts = {"确定", "取消", "复制链接", "OK", "Cancel", "Copy Link", "分享", "Share"};
+		for (String buttonText : buttonTexts) {
+			if (text.equals(buttonText)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/* =========================================================
+	 * 从对话框提取URL
+	 * ======================================================= */
+	private String extractUrlFromDialog(Dialog dialog) {
+		try {
+			// 尝试从Shell Activity获取WebView实例
+			if (Context != null && Context instanceof Activity) {
+				Activity activity = (Activity) Context;
+
+				// 通过反射获取Shell类中的WebView实例
+				try {
+					// Via浏览器中WebView通常在Shell类中，字段名为"u"或"webView"
+					Object webView = XposedHelpers.getObjectField(activity, "u");
+					if (webView instanceof WebView) {
+						String url = ((WebView) webView).getUrl();
+						if (url != null && !url.isEmpty()) {
+							XposedBridge.log("[BetterVia] 通过WebView获取到URL: " + url);
+							return url;
+						}
+					}
+				} catch (Exception e1) {
+					try {
+						// 尝试其他可能的字段名
+						Object webView = XposedHelpers.getObjectField(activity, "webView");
+						if (webView instanceof WebView) {
+							String url = ((WebView) webView).getUrl();
+							if (url != null && !url.isEmpty()) {
+								XposedBridge.log("[BetterVia] 通过WebView获取到URL: " + url);
+								return url;
+							}
+						}
+					} catch (Exception e2) {
+						XposedBridge.log("[BetterVia] 无法通过反射获取WebView: " + e2.getMessage());
+					}
+				}
+
+				// 如果反射失败，尝试通过当前焦点View查找WebView
+				View currentFocus = activity.getCurrentFocus();
+				if (currentFocus instanceof WebView) {
+					String url = ((WebView) currentFocus).getUrl();
+					if (url != null && !url.isEmpty()) {
+						XposedBridge.log("[BetterVia] 通过当前焦点WebView获取到URL: " + url);
+						return url;
+					}
+				}
+
+				// 遍历Activity的View层次结构查找WebView
+				ViewGroup decorView = (ViewGroup) activity.getWindow().getDecorView();
+				WebView webView = findWebViewRecursive(decorView);
+				if (webView != null) {
+					String url = webView.getUrl();
+					if (url != null && !url.isEmpty()) {
+						XposedBridge.log("[BetterVia] 通过遍历View获取到URL: " + url);
+						return url;
+					}
+				}
+			}
+
+		} catch (Exception e) {
+			XposedBridge.log("[BetterVia] 提取URL失败: " + e.getMessage());
+		}
+
+		return "";
+	}
+
+	/* =========================================================
+	 * 递归查找WebView
+	 * ======================================================= */
+	private WebView findWebViewRecursive(View view) {
+		if (view instanceof WebView) {
+			return (WebView) view;
+		} else if (view instanceof ViewGroup) {
+			ViewGroup group = (ViewGroup) view;
+			for (int i = 0; i < group.getChildCount(); i++) {
+				WebView webView = findWebViewRecursive(group.getChildAt(i));
+				if (webView != null) {
+					return webView;
+				}
+			}
+		}
+		return null;
+	}
+
+	/* =========================================================
+	 * 创建分享文本
+	 * ======================================================= */
+	private String createShareText(String fileName, String fileSize, String fileUrl, Context ctx) {
+		// 只返回下载链接，便于用户直接选择下载器打开
+		if (!fileUrl.isEmpty()) {
+			return fileUrl;
+		} else {
+			// 如果无法获取URL，返回空字符串
+			return "";
+		}
+	}
+
+	/* =========================================================
 	 * 持久化工具
 	 * ======================================================= */
-	private boolean getPrefBoolean(Context ctx, String key, boolean def) {
+	private static boolean getPrefBoolean(Context ctx, String key, boolean def) {
 		try {
 			Object sp = XposedHelpers.callMethod(ctx, "getSharedPreferences", "BetterVia", Context.MODE_PRIVATE);
 			return (boolean) XposedHelpers.callMethod(sp, "getBoolean", key, def);
@@ -7127,14 +9035,14 @@ public class Hook implements IXposedHookLoadPackage {
 		}
 	}
 
-	private void putPrefBoolean(Context ctx, String key, boolean value) {
+	private static void putPrefBoolean(Context ctx, String key, boolean value) {
 		try {
 			Object sp = XposedHelpers.callMethod(ctx, "getSharedPreferences", "BetterVia", Context.MODE_PRIVATE);
 			Object ed = XposedHelpers.callMethod(sp, "edit");
 			XposedHelpers.callMethod(ed, "putBoolean", key, value);
 			XposedHelpers.callMethod(ed, "apply");
 		} catch (Exception e) {
-			XposedBridge.log("putBoolean 失败: " + e);
+			XposedBridge.log("[BetterVia] 写入布尔值时失败: " + e);
 		}
 	}
 
@@ -7145,7 +9053,7 @@ public class Hook implements IXposedHookLoadPackage {
 			XposedHelpers.callMethod(ed, "putString", "preferred_language", lang);
 			XposedHelpers.callMethod(ed, "apply");
 		} catch (Exception e) {
-			XposedBridge.log("保存语言失败: " + e);
+			XposedBridge.log("[BetterVia] 保存语言失败: " + e);
 		}
 	}
 
@@ -7168,7 +9076,7 @@ public class Hook implements IXposedHookLoadPackage {
 			XposedHelpers.callMethod(ed, "putString", key, value);
 			XposedHelpers.callMethod(ed, "apply");
 		} catch (Exception e) {
-			XposedBridge.log("putString 失败: " + e);
+			XposedBridge.log("[BetterVia] 写入字符串值时失败: " + e);
 		}
 	}
 
@@ -7182,7 +9090,7 @@ public class Hook implements IXposedHookLoadPackage {
 	}
 
 	/* =========================================================
-	* 静态方法：获取保存的语言设置
+	* 获取保存的语言设置
 	* ======================================================= */
 	private static String getSavedLanguageStatic(Context ctx) {
 		try {
@@ -7202,7 +9110,7 @@ public class Hook implements IXposedHookLoadPackage {
 			ClipData clip = ClipData.newPlainText("Via Command", text);
 			clipboard.setPrimaryClip(clip);
 		} catch (Exception e) {
-			XposedBridge.log("复制到剪贴板失败: " + e);
+			XposedBridge.log("[BetterVia] 复制到剪贴板失败: " + e);
 		}
 	}
 
@@ -7238,9 +9146,9 @@ public class Hook implements IXposedHookLoadPackage {
 				cfg.locale = newLoc;
 			}
 			res.updateConfiguration(cfg, res.getDisplayMetrics());
-			XposedBridge.log("Via 语言环境已切换: " + newLoc.toString());
+			XposedBridge.log("[BetterVia] Via语言环境已切换: " + newLoc.toString());
 		} catch (Exception e) {
-			XposedBridge.log("切换 Locale 失败: " + e);
+			XposedBridge.log("[BetterVia] 切换Locale失败: " + e);
 		}
 	}
 
@@ -7250,9 +9158,9 @@ public class Hook implements IXposedHookLoadPackage {
 		try {
 			String newText = getLocalizedString(ctx, "module_settings");
 			XposedHelpers.setObjectField(moduleButtonRef, "a", newText);
-			XposedBridge.log("模块按钮文字已刷新: " + newText);
+			XposedBridge.log("[BetterVia] 模块按钮文字已刷新: " + newText);
 		} catch (Exception e) {
-			XposedBridge.log("刷新按钮文字失败: " + e);
+			XposedBridge.log("[BetterVia] 刷新按钮文字失败: " + e);
 		}
 	}
 
@@ -7277,15 +9185,76 @@ public class Hook implements IXposedHookLoadPackage {
 		Toast.makeText(ctx, getLocalizedString(ctx, key), Toast.LENGTH_SHORT).show();
 	}
 
+	/* =========================================================
+	* 安全显示Toast消息
+	* ======================================================= */
 	private void jiguroMessage(String msg) {
 		try {
-			Toast.makeText(Context, msg, Toast.LENGTH_SHORT).show();
+			if (Context == null) {
+				XposedBridge.log("[BetterVia] Context为null，无法显示Toast: " + msg);
+				return;
+			}
+
+			// 检查Context是否是有效的Activity
+			if (Context instanceof Activity) {
+				Activity activity = (Activity) Context;
+				if (activity.isFinishing() || activity.isDestroyed()) {
+					// Activity已销毁，使用Application上下文
+					showToastSafely(Context.getApplicationContext(), msg);
+					return;
+				}
+			}
+
+			// 正常显示Toast
+			showToastSafely(Context, msg);
+
 		} catch (Exception e) {
-			XposedBridge.log("Toast 异常: " + e);
+			XposedBridge.log("[BetterVia] Toast显示异常: " + e);
 		}
 	}
 
-	private int dp(Context ctx, int dp) {
+	/* =========================================================
+	 * 安全显示Toast
+	 * ======================================================= */
+	private void showToastSafely(final Context context, final String msg) {
+		try {
+			// 确保在主线程执行
+			if (Looper.myLooper() == Looper.getMainLooper()) {
+				// 已经在主线程，直接显示
+				Toast.makeText(context, msg, Toast.LENGTH_SHORT).show();
+			} else {
+				// 不在主线程，切换到主线程
+				if (context instanceof Activity) {
+					((Activity) context).runOnUiThread(new Runnable() {
+						@Override
+						public void run() {
+							try {
+								Toast.makeText(context, msg, Toast.LENGTH_SHORT).show();
+							} catch (Exception e) {
+								XposedBridge.log("[BetterVia] 主线程Toast异常: " + e);
+							}
+						}
+					});
+				} else {
+					// 使用Application上下文和Handler
+					new Handler(Looper.getMainLooper()).post(new Runnable() {
+						@Override
+						public void run() {
+							try {
+								Toast.makeText(context.getApplicationContext(), msg, Toast.LENGTH_SHORT).show();
+							} catch (Exception e) {
+								XposedBridge.log("[BetterVia] Handler Toast异常: " + e);
+							}
+						}
+					});
+				}
+			}
+		} catch (Exception e) {
+			XposedBridge.log("[BetterVia] showToastSafely异常: " + e);
+		}
+	}
+
+	private static int dp(Context ctx, int dp) {
 		return (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, dp, ctx.getResources().getDisplayMetrics());
 	}
 
@@ -7305,9 +9274,11 @@ public class Hook implements IXposedHookLoadPackage {
 			XposedHelpers.callMethod(ed, "putInt", key, value);
 			XposedHelpers.callMethod(ed, "apply");
 		} catch (Exception e) {
-			XposedBridge.log("putInt 失败: " + e);
+			XposedBridge.log("[BetterVia] 写入Int值失败: " + e);
 		}
 	}
+
+	/* ================== 此处省略部分代码... ================== */
 
 	/* =========================================================
 	 * 启动时检查更新
@@ -7440,7 +9411,7 @@ public class Hook implements IXposedHookLoadPackage {
 				ScrollView scrollRoot = new ScrollView(act);
 				scrollRoot.setPadding(dp(act, 16), dp(act, 16), dp(act, 16), dp(act, 16));
 
-				// 主布局容器
+				// 主布局容器 - 保持原有的圆角样式
 				LinearLayout root = new LinearLayout(act);
 				root.setOrientation(LinearLayout.VERTICAL);
 				root.setPadding(dp(act, 24), dp(act, 24), dp(act, 24), dp(act, 24));
@@ -7598,7 +9569,7 @@ public class Hook implements IXposedHookLoadPackage {
 	}
 
 	/* =========================================================
-	 * 显示关于对话框
+	 * 显示关于对话框（添加新年烟花彩蛋）
 	 * ======================================================= */
 	private void showAboutDialog(final Context ctx) {
 		if (Context == null || !(Context instanceof Activity))
@@ -7629,21 +9600,30 @@ public class Hook implements IXposedHookLoadPackage {
 				root.setOrientation(LinearLayout.VERTICAL);
 				root.setPadding(dp(act, 24), dp(act, 28), dp(act, 24), dp(act, 24));
 
-				// 大标题
+				// 大标题 - 添加新年特效
 				TextView title = new TextView(act);
 				title.setText("BetterVia");
 				title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 24);
 				title.setTextColor(0xFF6200EE);
 				title.setTypeface(null, Typeface.BOLD);
 				title.setGravity(Gravity.CENTER);
+
+				// 为标题添加新年闪烁效果
+				ObjectAnimator colorAnim = ObjectAnimator.ofInt(title, "textColor", 0xFF6200EE, 0xFFFF6B35, 0xFF4CD964,
+						0xFF5AC8FA, 0xFF6200EE);
+				colorAnim.setDuration(2000);
+				colorAnim.setEvaluator(new ArgbEvaluator());
+				colorAnim.setRepeatCount(ObjectAnimator.INFINITE);
+				colorAnim.start();
+
 				LinearLayout.LayoutParams titleLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
 						ViewGroup.LayoutParams.WRAP_CONTENT);
 				titleLp.bottomMargin = dp(act, 8);
 				root.addView(title, titleLp);
 
-				// 副标题
+				// 副标题 - 添加新年祝福
 				TextView subtitle = new TextView(act);
-				subtitle.setText(getLocalizedString(ctx, "about_subtitle"));
+				subtitle.setText(getLocalizedString(ctx, "about_subtitle") + " 🎉");
 				subtitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
 				subtitle.setTextColor(0xFF666666);
 				subtitle.setGravity(Gravity.CENTER);
@@ -7660,10 +9640,10 @@ public class Hook implements IXposedHookLoadPackage {
 				root.addView(moduleTitle);
 
 				// 版本信息
-				addAboutItem(root, act, getLocalizedString(ctx, "about_version"), MODULE_VERSION_NAME);
+				addAboutItem(root, act, getLocalizedString(ctx, "about_version"), MODULE_VERSION_NAME + " 🎊");
 
 				// 作者信息
-				addAboutItem(root, act, getLocalizedString(ctx, "about_author"), "JiGuro");
+				addAboutItem(root, act, getLocalizedString(ctx, "about_author"), "JiGuro 🧧");
 
 				// GitHub仓库
 				addClickableAboutItem(root, act, getLocalizedString(ctx, "about_github"),
@@ -7698,6 +9678,35 @@ public class Hook implements IXposedHookLoadPackage {
 							}
 						});
 
+				/* ========== 新年祝福部分 ========== */
+				TextView newYearTitle = new TextView(act);
+				newYearTitle.setText(getLocalizedString(ctx, "new_year_title"));
+				newYearTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 20);
+				newYearTitle.setTextColor(0xFFFF6B35);
+				newYearTitle.setTypeface(null, Typeface.BOLD);
+				newYearTitle.setGravity(Gravity.CENTER);
+				newYearTitle.setPadding(0, dp(act, 24), 0, dp(act, 12));
+
+				// 添加缩放动画
+				ObjectAnimator scaleX = ObjectAnimator.ofFloat(newYearTitle, "scaleX", 0.8f, 1.2f, 1.0f);
+				ObjectAnimator scaleY = ObjectAnimator.ofFloat(newYearTitle, "scaleY", 0.8f, 1.2f, 1.0f);
+				AnimatorSet scaleAnim = new AnimatorSet();
+				scaleAnim.playTogether(scaleX, scaleY);
+				scaleAnim.setDuration(1500);
+				scaleAnim.setInterpolator(new OvershootInterpolator());
+				scaleAnim.start();
+
+				root.addView(newYearTitle);
+
+				TextView newYearWish = new TextView(act);
+				newYearWish.setText(getLocalizedString(ctx, "new_year_wish_text"));
+				newYearWish.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+				newYearWish.setTextColor(0xFF666666);
+				newYearWish.setGravity(Gravity.CENTER);
+				newYearWish.setLineSpacing(dp(act, 4), 1.2f);
+				newYearWish.setPadding(0, 0, 0, dp(act, 16));
+				root.addView(newYearWish);
+
 				/* ========== 更新日志部分 ========== */
 				TextView updateTitle = new TextView(act);
 				updateTitle.setText(getLocalizedString(ctx, "about_update_title"));
@@ -7716,13 +9725,14 @@ public class Hook implements IXposedHookLoadPackage {
 				updateBg.setCornerRadius(dp(act, 8));
 				updateContainer.setBackground(updateBg);
 
-				String[] updateLogs = {getLocalizedString(ctx, "about_update_log1"),
-						getLocalizedString(ctx, "about_update_log2"), getLocalizedString(ctx, "about_update_log3"),
-						getLocalizedString(ctx, "about_update_log4")};
+				String[] updateLogs = {getLocalizedString(ctx, "about_update_log0"),
+						getLocalizedString(ctx, "about_update_log1"), getLocalizedString(ctx, "about_update_log2"),
+						getLocalizedString(ctx, "about_update_log3"), getLocalizedString(ctx, "about_update_log4"),
+						getLocalizedString(ctx, "about_update_log5")};
 
 				for (String log : updateLogs) {
 					TextView logItem = new TextView(act);
-					logItem.setText("• " + log);
+					logItem.setText("🎯 " + log);
 					logItem.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
 					logItem.setTextColor(0xFF444444);
 					logItem.setPadding(0, dp(act, 4), 0, dp(act, 4));
@@ -7756,12 +9766,12 @@ public class Hook implements IXposedHookLoadPackage {
 
 				// 确定按钮
 				Button ok = new Button(act);
-				ok.setText(getLocalizedString(ctx, "dialog_ok"));
+				ok.setText("🎊 " + getLocalizedString(ctx, "dialog_ok") + " 🎊");
 				ok.setTextColor(Color.WHITE);
 				ok.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
 				ok.setTypeface(null, Typeface.BOLD);
 				GradientDrawable btnBg = new GradientDrawable();
-				btnBg.setColor(0xFF6200EE);
+				btnBg.setColor(0xFFFF6B35); // 新年橙色
 				btnBg.setCornerRadius(dp(act, 12));
 				ok.setBackground(btnBg);
 				ok.setPadding(0, dp(act, 14), 0, dp(act, 14));
@@ -7798,6 +9808,325 @@ public class Hook implements IXposedHookLoadPackage {
 				});
 
 				dialog.show();
+
+				// 显示新年祝福Toast
+				new Handler().postDelayed(new Runnable() {
+					@Override
+					public void run() {
+						Toast.makeText(act, getLocalizedString(ctx, "new_year_toast"), Toast.LENGTH_LONG).show();
+					}
+				}, 1000);
+			}
+		});
+	}
+
+	/* =========================================================
+	 * 显示拾穗对话框
+	 * ======================================================= */
+	private void showShisuiDialog(final Context ctx) {
+		if (Context == null || !(Context instanceof Activity))
+			return;
+		final Activity act = (Activity) Context;
+
+		act.runOnUiThread(new Runnable() {
+			@Override
+			public void run() {
+				if (act.isFinishing() || act.isDestroyed())
+					return;
+
+				final Dialog dialog = new Dialog(act);
+				dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+				dialog.setCancelable(true);
+
+				// 根容器
+				LinearLayout dialogContainer = new LinearLayout(act);
+				dialogContainer.setOrientation(LinearLayout.VERTICAL);
+				GradientDrawable containerBg = new GradientDrawable();
+				containerBg.setColor(Color.WHITE);
+				containerBg.setCornerRadius(dp(act, 24));
+				dialogContainer.setBackground(containerBg);
+
+				ScrollView scrollRoot = new ScrollView(act);
+				scrollRoot.setPadding(dp(act, 16), dp(act, 16), dp(act, 16), dp(act, 16));
+
+				final LinearLayout root = new LinearLayout(act);
+				root.setOrientation(LinearLayout.VERTICAL);
+				root.setPadding(dp(act, 24), dp(act, 28), dp(act, 24), dp(act, 24));
+
+				// 大标题
+				TextView title = new TextView(act);
+				title.setText(getLocalizedString(ctx, "shisui_dialog_title"));
+				title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 24);
+				title.setTextColor(0xFF6200EE);
+				title.setTypeface(null, Typeface.BOLD);
+				title.setGravity(Gravity.CENTER);
+				LinearLayout.LayoutParams titleLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+						ViewGroup.LayoutParams.WRAP_CONTENT);
+				titleLp.bottomMargin = dp(act, 8);
+				root.addView(title, titleLp);
+
+				// 副标题
+				TextView subtitle = new TextView(act);
+				subtitle.setText(getLocalizedString(ctx, "shisui_dialog_subtitle"));
+				subtitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+				subtitle.setTextColor(0xFF666666);
+				subtitle.setGravity(Gravity.CENTER);
+				subtitle.setPadding(0, 0, 0, dp(act, 24));
+				root.addView(subtitle);
+
+				// 加载提示
+				final TextView loadingText = new TextView(act);
+				loadingText.setText(getLocalizedString(ctx, "shisui_loading"));
+				loadingText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+				loadingText.setTextColor(0xFF666666);
+				loadingText.setGravity(Gravity.CENTER);
+				loadingText.setPadding(0, dp(act, 24), 0, dp(act, 24));
+				root.addView(loadingText);
+
+				// 内容容器
+				final LinearLayout contentContainer = new LinearLayout(act);
+				contentContainer.setOrientation(LinearLayout.VERTICAL);
+				root.addView(contentContainer);
+
+				// 获取网络源设置
+				String savedSource = getPrefString(ctx, KEY_NETWORK_SOURCE, DEFAULT_NETWORK_SOURCE);
+				final String shisuiUrl = savedSource.equals(NETWORK_SOURCE_GITEE)
+						? GITEE_SHISUI_JSON_URL
+						: GITHUB_SHISUI_JSON_URL;
+
+				// 在后台线程加载拾穗内容
+				new Thread(new Runnable() {
+					@Override
+					public void run() {
+						try {
+							// 下载JSON数据
+							URL url = new URL(shisuiUrl);
+							HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+							conn.setRequestMethod("GET");
+							conn.setConnectTimeout(10000);
+							conn.setReadTimeout(15000);
+							conn.connect();
+
+							if (conn.getResponseCode() == HttpURLConnection.HTTP_OK) {
+								InputStream is = conn.getInputStream();
+								BufferedReader reader = new BufferedReader(new InputStreamReader(is, "UTF-8"));
+								StringBuilder sb = new StringBuilder();
+								String line;
+								while ((line = reader.readLine()) != null) {
+									sb.append(line);
+								}
+								reader.close();
+								is.close();
+								conn.disconnect();
+
+								final String jsonData = sb.toString();
+
+								// 在UI线程处理数据
+								act.runOnUiThread(new Runnable() {
+									@Override
+									public void run() {
+										try {
+											// 移除加载提示
+											root.removeView(loadingText);
+
+											// 解析JSON数据
+											JSONArray jsonArray = new JSONArray(jsonData);
+											String lastYear = "";
+
+											for (int i = 0; i < jsonArray.length(); i++) {
+												JSONObject item = jsonArray.getJSONObject(i);
+												final String year = item.getString("year");
+												final String version = item.getString("version");
+												final String content = item.getString("content");
+
+												// 添加年份标题（如果与上一个不同）
+												if (!year.equals(lastYear)) {
+													TextView yearTitle = new TextView(act);
+													yearTitle.setText(year);
+													yearTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18);
+													yearTitle.setTextColor(Color.BLACK);
+													yearTitle.setTypeface(null, Typeface.BOLD);
+													yearTitle.setPadding(0, dp(act, 16), 0, dp(act, 8));
+													contentContainer.addView(yearTitle);
+													lastYear = year;
+												}
+
+												// 创建版本和复制按钮的容器
+												LinearLayout versionContainer = new LinearLayout(act);
+												versionContainer.setOrientation(LinearLayout.HORIZONTAL);
+												versionContainer.setGravity(Gravity.CENTER_VERTICAL);
+
+												// 添加版本标题
+												TextView versionTitle = new TextView(act);
+												versionTitle.setText(version);
+												versionTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+												versionTitle.setTextColor(0xFF6200EE);
+												versionTitle.setTypeface(null, Typeface.BOLD);
+												versionTitle.setPadding(0, 0, dp(act, 8), dp(act, 4));
+												versionContainer.addView(versionTitle, new LinearLayout.LayoutParams(0,
+														ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+
+												// 添加复制文字按钮
+												TextView copyBtn = new TextView(act);
+												copyBtn.setText(getLocalizedString(ctx, "shisui_copy"));
+												copyBtn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+												copyBtn.setTextColor(Color.BLACK);
+												copyBtn.setPadding(dp(act, 8), dp(act, 4), dp(act, 8), dp(act, 4));
+												copyBtn.setBackground(getRoundBg(act, 0xFFE0E0E0, 12));
+												copyBtn.setOnClickListener(new View.OnClickListener() {
+													@Override
+													public void onClick(View v) {
+														// 构建复制内容
+														StringBuilder copyContent = new StringBuilder();
+														copyContent.append(year).append(" - ").append(version)
+																.append("\n");
+														copyContent.append(content.replace("\\r\\n", "\n"));
+
+														// 复制到剪贴板
+														ClipboardManager clipboard = (ClipboardManager) act
+																.getSystemService(Context.CLIPBOARD_SERVICE);
+														android.content.ClipData clip = android.content.ClipData
+																.newPlainText("Via Shisui", copyContent.toString());
+														clipboard.setPrimaryClip(clip);
+
+														Toast.makeText(act, getLocalizedString(ctx, "shisui_copied"),
+																Toast.LENGTH_SHORT).show();
+													}
+												});
+												versionContainer.addView(copyBtn);
+
+												contentContainer.addView(versionContainer);
+
+												// 添加内容（处理换行）
+												String[] lines = content.split("\\\\r\\\\n");
+												for (String line : lines) {
+													TextView contentText = new TextView(act);
+													contentText.setText(line);
+													contentText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+													contentText.setTextColor(0xFF333333);
+													contentText.setPadding(dp(act, 8), dp(act, 4), dp(act, 8),
+															dp(act, 4));
+													contentContainer.addView(contentText);
+												}
+
+												// 添加分隔线（除了最后一条）
+												if (i < jsonArray.length() - 1) {
+													View divider = new View(act);
+													divider.setLayoutParams(new LinearLayout.LayoutParams(
+															ViewGroup.LayoutParams.MATCH_PARENT, dp(act, 1)));
+													divider.setBackgroundColor(0xFFDDDDDD);
+													LinearLayout.LayoutParams dividerLp = new LinearLayout.LayoutParams(
+															ViewGroup.LayoutParams.MATCH_PARENT, dp(act, 1));
+													dividerLp.setMargins(0, dp(act, 12), 0, dp(act, 12));
+													divider.setLayoutParams(dividerLp);
+													contentContainer.addView(divider);
+												}
+											}
+
+											// 添加最后的分割线和未完待续
+											View finalDivider = new View(act);
+											finalDivider.setLayoutParams(new LinearLayout.LayoutParams(
+													ViewGroup.LayoutParams.MATCH_PARENT, dp(act, 1)));
+											finalDivider.setBackgroundColor(0xFFDDDDDD);
+											LinearLayout.LayoutParams finalDividerLp = new LinearLayout.LayoutParams(
+													ViewGroup.LayoutParams.MATCH_PARENT, dp(act, 1));
+											finalDividerLp.setMargins(0, dp(act, 12), 0, dp(act, 8));
+											finalDivider.setLayoutParams(finalDividerLp);
+											contentContainer.addView(finalDivider);
+
+											TextView continuedText = new TextView(act);
+											continuedText.setText(getLocalizedString(ctx, "to_be_continued"));
+											continuedText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+											continuedText.setTextColor(0xFF666666);
+											continuedText.setTypeface(null, Typeface.ITALIC);
+											continuedText.setGravity(Gravity.CENTER);
+											continuedText.setPadding(0, 0, 0, dp(act, 16));
+											contentContainer.addView(continuedText);
+
+											// 添加底部信息
+											LinearLayout bottomContainer = new LinearLayout(act);
+											bottomContainer.setOrientation(LinearLayout.HORIZONTAL);
+											bottomContainer.setGravity(Gravity.CENTER);
+
+											TextView bottomText = new TextView(act);
+											bottomText.setText(getLocalizedString(ctx, "shisui_source_credit") + " ");
+											bottomText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+											bottomText.setTextColor(0xFF666666);
+											bottomContainer.addView(bottomText);
+
+											// 创建可点击的sgfox链接
+											SpannableString ss = new SpannableString("sgfox");
+											ClickableSpan clickableSpan = new ClickableSpan() {
+												@Override
+												public void onClick(View widget) {
+													openUrl(act, "https://www.sgfox.cc/archives/via-shisui.html");
+													Toast.makeText(act, getLocalizedString(ctx, "url_opened"),
+															Toast.LENGTH_SHORT).show();
+												}
+											};
+											ss.setSpan(clickableSpan, 0, ss.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+											ss.setSpan(new ForegroundColorSpan(0xFF4285F4), 0, ss.length(),
+													Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+
+											TextView sgfoxText = new TextView(act);
+											sgfoxText.setText(ss);
+											sgfoxText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+											sgfoxText.setMovementMethod(LinkMovementMethod.getInstance());
+											bottomContainer.addView(sgfoxText);
+
+											LinearLayout.LayoutParams bottomLp = new LinearLayout.LayoutParams(
+													ViewGroup.LayoutParams.WRAP_CONTENT,
+													ViewGroup.LayoutParams.WRAP_CONTENT);
+											bottomLp.gravity = Gravity.CENTER;
+											bottomLp.topMargin = dp(act, 8);
+											contentContainer.addView(bottomContainer, bottomLp);
+
+										} catch (JSONException e) {
+											// JSON解析失败
+											loadingText.setText(getLocalizedString(ctx, "shisui_load_failed"));
+										}
+									}
+								});
+							} else {
+								// 网络请求失败
+								act.runOnUiThread(new Runnable() {
+									@Override
+									public void run() {
+										loadingText.setText(getLocalizedString(ctx, "shisui_load_failed"));
+									}
+								});
+							}
+						} catch (Exception e) {
+							// 异常处理
+							act.runOnUiThread(new Runnable() {
+								@Override
+								public void run() {
+									loadingText.setText(getLocalizedString(ctx, "shisui_load_failed"));
+								}
+							});
+						}
+					}
+				}).start();
+
+				scrollRoot.addView(root);
+				dialogContainer.addView(scrollRoot);
+
+				// 设置对话框窗口属性
+				Window win = dialog.getWindow();
+				if (win != null) {
+					win.setBackgroundDrawableResource(android.R.color.transparent);
+					win.setGravity(Gravity.CENTER);
+					win.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+				}
+
+				dialog.setContentView(dialogContainer);
+				dialog.show();
+
+				// 设置对话框宽度
+				WindowManager.LayoutParams lp = new WindowManager.LayoutParams();
+				lp.copyFrom(dialog.getWindow().getAttributes());
+				lp.width = (int) (act.getResources().getDisplayMetrics().widthPixels * 0.9);
+				dialog.getWindow().setAttributes(lp);
 			}
 		});
 	}
@@ -7874,9 +10203,112 @@ public class Hook implements IXposedHookLoadPackage {
 	}
 
 	/* =========================================================
+	 * 版本检测功能
+	 * ======================================================= */
+	private static void checkViaVersion(Context ctx) {
+		try {
+			// 获取Via版本号
+			PackageManager pm = ctx.getPackageManager();
+			PackageInfo pi = pm.getPackageInfo(ctx.getPackageName(), 0);
+			String currentVersion = pi.versionName;
+
+			// 检查是否已经禁用了版本检查
+			String prefKey = KEY_VERSION_CHECK_DISABLED + "_" + currentVersion;
+			boolean versionCheckDisabled = getPrefBoolean(ctx, prefKey, false);
+
+			// 如果版本不匹配且未禁用检查，则显示对话框
+			if (!SUPPORTED_VIA_VERSION.equals(currentVersion) && !versionCheckDisabled) {
+				showVersionErrorDialog(ctx, currentVersion);
+			}
+		} catch (Exception e) {
+			XposedBridge.log("[BetterVia] 版本检测失败: " + e.getMessage());
+		}
+	}
+
+	private static void showVersionErrorDialog(final Context ctx, final String currentVersion) {
+		if (Context == null || !(Context instanceof Activity))
+			return;
+		final Activity act = (Activity) Context;
+
+		act.runOnUiThread(new Runnable() {
+			@Override
+			public void run() {
+				if (act.isFinishing() || act.isDestroyed())
+					return;
+
+				// 显示Toast提示
+				Toast.makeText(ctx, getLocalizedString(ctx, "hook_success_message"), Toast.LENGTH_SHORT).show();
+
+				// 创建对话框
+				AlertDialog.Builder builder = new AlertDialog.Builder(act);
+
+				// 设置标题
+				builder.setTitle(getLocalizedString(ctx, "version_error_title"));
+
+				// 设置消息内容
+				String message = String.format(getLocalizedString(ctx, "version_error_message"), currentVersion,
+						SUPPORTED_VIA_VERSION);
+				builder.setMessage(message);
+
+				// 创建自定义视图以添加复选框
+				LinearLayout layout = new LinearLayout(act);
+				layout.setOrientation(LinearLayout.VERTICAL);
+				layout.setPadding(dp(act, 20), dp(act, 10), dp(act, 20), dp(act, 10));
+
+				// 添加"不再提示"复选框
+				final CheckBox checkBox = new CheckBox(act);
+				checkBox.setText(getLocalizedString(ctx, "version_error_dont_show_again"));
+				checkBox.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+				layout.addView(checkBox);
+
+				builder.setView(layout);
+
+				// 设置退出按钮
+				builder.setNegativeButton(getLocalizedString(ctx, "version_error_exit"),
+						new DialogInterface.OnClickListener() {
+							@Override
+							public void onClick(DialogInterface dialog, int which) {
+								// 如果用户勾选了"不再提示"，保存设置
+								if (checkBox.isChecked()) {
+									String prefKey = KEY_VERSION_CHECK_DISABLED + "_" + currentVersion;
+									putPrefBoolean(ctx, prefKey, true);
+								}
+
+								// 强制退出Via
+								System.exit(0);
+							}
+						});
+
+				// 设置进入按钮
+				builder.setPositiveButton(getLocalizedString(ctx, "version_error_continue"),
+						new DialogInterface.OnClickListener() {
+							@Override
+							public void onClick(DialogInterface dialog, int which) {
+								// 如果用户勾选了"不再提示"，保存设置
+								if (checkBox.isChecked()) {
+									String prefKey = KEY_VERSION_CHECK_DISABLED + "_" + currentVersion;
+									putPrefBoolean(ctx, prefKey, true);
+								}
+
+								// 继续使用，不执行任何操作
+								dialog.dismiss();
+							}
+						});
+
+				// 设置不可取消（防止用户通过返回键跳过）
+				builder.setCancelable(false);
+
+				// 显示对话框
+				AlertDialog dialog = builder.create();
+				dialog.show();
+			}
+		});
+	}
+
+	/* =========================================================
 	 * 多语言映射
 	 * ======================================================= */
-	private String getLocalizedString(Context ctx, String key) {
+	private static String getLocalizedString(Context ctx, String key) {
 		Locale loc = getUserLocale(ctx);
 		String lang = loc.getLanguage();
 		String country = loc.getCountry();
@@ -7957,18 +10389,6 @@ public class Hook implements IXposedHookLoadPackage {
 				return "CN".equals(country) ? "解除某些网站的资源嗅探、广告拦截和脚本限制" : "解除某些網站的資源嗅探、廣告攔截和腳本限制";
 			}
 			return "Unblock resource sniffing, ad blocking and script restrictions for certain websites";
-		}
-		if ("b_hook_switch".equals(key)) {
-			if ("zh".equals(lang)) {
-				return "CN".equals(country) ? "开启实验模式" : "開啟實驗模式";
-			}
-			return "Experimental Mode";
-		}
-		if ("b_hook_hint".equals(key)) {
-			if ("zh".equals(lang)) {
-				return "CN".equals(country) ? "显示隐藏的实验模式入口" : "顯示隱藏的實驗模式入口";
-			}
-			return "Show hidden experimental mode entrance";
 		}
 		if ("hook_success_message".equals(key)) {
 			if ("zh".equals(lang)) {
@@ -8120,7 +10540,7 @@ public class Hook implements IXposedHookLoadPackage {
 		}
 		if ("eye_protection_sample_text".equals(key)) {
 			if ("zh".equals(lang)) {
-				return "CN".equals(country) ? "心随长风去，吹散万里云。" : "心隨長風去，吹散萬里雲。";
+				return "CN".equals(country) ? "片云天共远，永夜月同孤。" : "片雲天共遠，永夜月同孤。";
 			}
 			return "This is sample text";
 		}
@@ -8185,6 +10605,18 @@ public class Hook implements IXposedHookLoadPackage {
 				return "CN".equals(country) ? "防止屏幕自动息屏，但会增加耗电" : "防止屏幕自動息屏，但會增加耗電";
 			}
 			return "Prevent screen from turning off automatically, but will increase battery consumption";
+		}
+		if ("background_video_switch".equals(key)) {
+			if ("zh".equals(lang)) {
+				return "CN".equals(country) ? "后台听视频" : "後台聽影片";
+			}
+			return "Background Video Audio";
+		}
+		if ("background_video_hint".equals(key)) {
+			if ("zh".equals(lang)) {
+				return "CN".equals(country) ? "在浏览器播放视频时置于后台，声音不会停止" : "在瀏覽器播放影片時置於後台，聲音不會停止";
+			}
+			return "Continue playing audio when video is in background";
 		}
 		if ("hide_status_bar_switch".equals(key)) {
 			if ("zh".equals(lang)) {
@@ -8985,12 +11417,6 @@ public class Hook implements IXposedHookLoadPackage {
 			}
 			return "Are you sure you want to delete the selected cookies? This operation cannot be undone.";
 		}
-		if ("cookie_delete_no_selected".equals(key)) {
-			if ("zh".equals(lang)) {
-				return "CN".equals(country) ? "没有选中要删除的Cookie" : "沒有選中要刪除的Cookie";
-			}
-			return "No cookies selected for deletion";
-		}
 		if ("cookie_delete_error".equals(key)) {
 			if ("zh".equals(lang)) {
 				return "CN".equals(country) ? "删除Cookie时发生错误" : "刪除Cookie時發生錯誤";
@@ -9131,6 +11557,100 @@ public class Hook implements IXposedHookLoadPackage {
 				return "CN".equals(country) ? "确定" : "確定";
 			}
 			return "Delete";
+		}
+
+		// 域名分组相关字符串
+		if ("cookie_view_domain".equals(key)) {
+			if ("zh".equals(lang)) {
+				return "CN".equals(country) ? "域名视图" : "網域視圖";
+			}
+			return "Domain View";
+		}
+		if ("cookie_view_list".equals(key)) {
+			if ("zh".equals(lang)) {
+				return "CN".equals(country) ? "列表视图" : "列表視圖";
+			}
+			return "List View";
+		}
+		if ("cookie_view_switching".equals(key)) {
+			if ("zh".equals(lang)) {
+				return "CN".equals(country) ? "正在切换视图..." : "正在切換視圖...";
+			}
+			return "Switching view...";
+		}
+		if ("cookie_domain_count_label".equals(key)) {
+			if ("zh".equals(lang)) {
+				return "CN".equals(country) ? "%d 个Cookie" : "%d 個Cookie";
+			}
+			return "%d cookies";
+		}
+		if ("cookie_domain_more_label".equals(key)) {
+			if ("zh".equals(lang)) {
+				return "CN".equals(country) ? "还有 %d 个..." : "還有 %d 個...";
+			}
+			return "%d more...";
+		}
+		if ("cookie_domain_delete_all".equals(key)) {
+			if ("zh".equals(lang)) {
+				return "CN".equals(country) ? "删除所有" : "刪除所有";
+			}
+			return "Delete All";
+		}
+		if ("cookie_delete_success".equals(key)) {
+			if ("zh".equals(lang)) {
+				return "CN".equals(country) ? "已删除选中的Cookie" : "已刪除選中的Cookie";
+			}
+			return "Selected cookies deleted";
+		}
+		if ("cookie_delete_no_selected".equals(key)) {
+			if ("zh".equals(lang)) {
+				return "CN".equals(country) ? "没有选中要删除的Cookie" : "沒有選中要刪除的Cookie";
+			}
+			return "No cookies are selected for deletion";
+		}
+		if ("cookie_domain_total_count".equals(key)) {
+			if ("zh".equals(lang)) {
+				return "CN".equals(country) ? "该域名下共有 %d 个Cookie" : "該網域下共有 %d 個Cookie";
+			}
+			return "This domain has %d cookies";
+		}
+		if ("cookie_domain_delete_confirm_title".equals(key)) {
+			if ("zh".equals(lang)) {
+				return "CN".equals(country) ? "删除Cookie确认" : "刪除Cookie確認";
+			}
+			return "Delete Cookie Confirmation";
+		}
+		if ("cookie_domain_delete_confirm_msg".equals(key)) {
+			if ("zh".equals(lang)) {
+				return "CN".equals(country)
+						? "确定要删除域名 %s 下的所有 %d 个Cookie吗？此操作不可撤销。"
+						: "確定要刪除網域 %s 下的所有 %d 個Cookie嗎？此操作不可撤銷。";
+			}
+			return "Are you sure you want to delete all %d cookies from domain %s? This operation cannot be undone.";
+		}
+		if ("cookie_domain_delete_success".equals(key)) {
+			if ("zh".equals(lang)) {
+				return "CN".equals(country) ? "已删除域名 %s 下的 %d 个Cookie" : "已刪除網域 %s 下的 %d 個Cookie";
+			}
+			return "Deleted %d cookies from domain %s";
+		}
+		if ("cookie_domain_delete_selected_confirm_msg".equals(key)) {
+			if ("zh".equals(lang)) {
+				return "CN".equals(country) ? "确定要删除选中域名下的所有Cookie吗？此操作不可撤销。" : "確定要刪除選中網域下的所有Cookie嗎？此操作不可撤銷。";
+			}
+			return "Are you sure you want to delete all cookies from the selected domains? This operation cannot be undone.";
+		}
+		if ("cookie_domain_delete_selected_success".equals(key)) {
+			if ("zh".equals(lang)) {
+				return "CN".equals(country) ? "已删除 %d 个域名的共 %d 个Cookie" : "已刪除 %d 個網域的共 %d 個Cookie";
+			}
+			return "Deleted %d cookies from %d domains";
+		}
+		if ("cookie_domain_search_result".equals(key)) {
+			if ("zh".equals(lang)) {
+				return "CN".equals(country) ? "找到 %d 个域名" : "找到 %d 個網域";
+			}
+			return "Found %d domains";
 		}
 
 		/* ================== 网络和更新相关 ================== */
@@ -9279,6 +11799,41 @@ public class Hook implements IXposedHookLoadPackage {
 			}
 			return "Bypass SSL certificate verification for debugging and packet capture";
 		}
+
+		/* ================== 版本检测相关 ================== */
+		if ("version_error_title".equals(key)) {
+			if ("zh".equals(lang)) {
+				return "CN".equals(country) ? "版本错误" : "版本錯誤";
+			}
+			return "Version Error";
+		}
+		if ("version_error_message".equals(key)) {
+			if ("zh".equals(lang)) {
+				return "CN".equals(country)
+						? "检测到您的Via版本为%s，本模块版本适用于Via 6.9.0，建议您切换Via至模块支持版本。\n继续可能会导致模块失效和Via闪退，您确定要继续吗？"
+						: "檢測到您的Via版本為%s，本模組版本適用於Via 6.9.0，建議您切換Via至模組支援版本。\n繼續可能會導致模組失效和Via閃退，您確定要繼續嗎？";
+			}
+			return "Detected your Via version is %s, this module version is suitable for Via 6.9.0, it is recommended to switch Via to the version supported by the module.\nContinuing may cause the module to fail and Via to crash, are you sure you want to continue?";
+		}
+		if ("version_error_dont_show_again".equals(key)) {
+			if ("zh".equals(lang)) {
+				return "CN".equals(country) ? "不再提示" : "不再提示";
+			}
+			return "Don't show again";
+		}
+		if ("version_error_exit".equals(key)) {
+			if ("zh".equals(lang)) {
+				return "CN".equals(country) ? "退出" : "退出";
+			}
+			return "Exit";
+		}
+		if ("version_error_continue".equals(key)) {
+			if ("zh".equals(lang)) {
+				return "CN".equals(country) ? "进入" : "進入";
+			}
+			return "Continue";
+		}
+
 		/* ================== 关于相关多语言 ================== */
 		if ("about_title".equals(key)) {
 			if ("zh".equals(lang)) {
@@ -9337,29 +11892,41 @@ public class Hook implements IXposedHookLoadPackage {
 			}
 			return "Update";
 		}
+		if ("about_update_log0".equals(key)) {
+			if ("zh".equals(lang)) {
+				return "CN".equals(country) ? "支持Via新版6.9.0，添加版本检查" : "支持Via新版6.9.0，添加版本檢查";
+			}
+			return "Support Via new version 6.9.0, add version check";
+		}
 		if ("about_update_log1".equals(key)) {
 			if ("zh".equals(lang)) {
-				return "CN".equals(country) ? "修复了在某些机型上导致崩溃的问题" : "修復了在某些機型上導致崩潰的問題";
+				return "CN".equals(country) ? "进一步修复了在某些机型上导致崩溃的问题" : "進一步修復了在某些機型上導致崩潰的問題";
 			}
-			return "Fixed crash issues on some devices";
+			return "Further fixes for crashes on some devices";
 		}
 		if ("about_update_log2".equals(key)) {
 			if ("zh".equals(lang)) {
-				return "CN".equals(country) ? "新增了Cookie管理器" : "新增了Cookie管理器";
+				return "CN".equals(country) ? "新增了下载分享功能和拾穗收集界面" : "新增了下載分享功能和拾穗收集界面";
 			}
-			return "Added Cookie Manager";
+			return "Added download sharing function and gleaning collection interface";
 		}
 		if ("about_update_log3".equals(key)) {
 			if ("zh".equals(lang)) {
-				return "CN".equals(country) ? "添加了Via内部更新检测功能" : "添加了Via內部更新檢測功能";
+				return "CN".equals(country) ? "更新了Cookie管理器的UI，新增域名视图" : "更新了Cookie管理器的UI，新增域名視圖";
 			}
-			return "Added Via internal update detection";
+			return "Updated the UI of Cookie Manager and added domain name view";
 		}
 		if ("about_update_log4".equals(key)) {
 			if ("zh".equals(lang)) {
-				return "CN".equals(country) ? "完善了主页主题、脚本仓库、广告走开等一系列功能" : "完善了主頁主題、腳本倉庫、廣告走開等一系列功能";
+				return "CN".equals(country) ? "移除了一些不必要的功能，增强用户体验" : "移除了一些不必要的功能，增強用戶體驗";
 			}
-			return "Improved homepage themes, script repository, ad blocking and other features";
+			return "Removed some unnecessary functions to enhance user experience";
+		}
+		if ("about_update_log5".equals(key)) {
+			if ("zh".equals(lang)) {
+				return "CN".equals(country) ? "新年快乐！打开关于界面有彩蛋" : "新年快樂！打開關於界面有彩蛋";
+			}
+			return "Happy New Year! There are easter eggs when opening the About interface";
 		}
 		if ("about_thanks_title".equals(key)) {
 			if ("zh".equals(lang)) {
@@ -9379,34 +11946,205 @@ public class Hook implements IXposedHookLoadPackage {
 			}
 			return "Because there are too many people, we will not list them one by one. For details, please see the detailed authors in each section of the module";
 		}
+		// 拾穗功能相关
+		if ("shisui_title".equals(key)) {
+			if ("zh".equals(lang)) {
+				return "CN".equals(country) ? "拾穗" : "拾穗";
+			}
+			return "Shisui";
+		}
+		if ("shisui_hint".equals(key)) {
+			if ("zh".equals(lang)) {
+				return "CN".equals(country) ? "你喜爱的，从未缺席" : "你喜愛的，從未缺席";
+			}
+			return "What you love has never been absent";
+		}
+		if ("shisui_view".equals(key)) {
+			if ("zh".equals(lang)) {
+				return "CN".equals(country) ? "查看" : "查看";
+			}
+			return "View";
+		}
+		if ("shisui_dialog_title".equals(key)) {
+			if ("zh".equals(lang)) {
+				return "CN".equals(country) ? "拾穗" : "拾穗";
+			}
+			return "Shisui";
+		}
+		if ("shisui_dialog_subtitle".equals(key)) {
+			if ("zh".equals(lang)) {
+				return "CN".equals(country) ? "整理Via拾穗中的内容" : "整理Via拾穗中的內容";
+			}
+			return "Organizing content from Via Shisui";
+		}
+		if ("shisui_loading".equals(key)) {
+			if ("zh".equals(lang)) {
+				return "CN".equals(country) ? "正在加载拾穗内容..." : "正在載入拾穗內容...";
+			}
+			return "Loading Shisui content...";
+		}
+		if ("shisui_load_failed".equals(key)) {
+			if ("zh".equals(lang)) {
+				return "CN".equals(country) ? "加载失败，请检查网络连接" : "載入失敗，請檢查網路連接";
+			}
+			return "Failed to load, please check your network connection";
+		}
+		if ("shisui_copy".equals(key)) {
+			if ("zh".equals(lang)) {
+				return "CN".equals(country) ? "复制" : "複製";
+			}
+			return "Copy";
+		}
+		if ("shisui_copied".equals(key)) {
+			if ("zh".equals(lang)) {
+				return "CN".equals(country) ? "已复制到剪贴板" : "已複製到剪貼板";
+			}
+			return "Copied to clipboard";
+		}
+		if ("shisui_source_credit".equals(key)) {
+			if ("zh".equals(lang)) {
+				return "CN".equals(country) ? "拾穗整理来自" : "拾穗整理來自";
+			}
+			return "Shisui compiled by";
+		}
+		if ("url_opened".equals(key)) {
+			if ("zh".equals(lang)) {
+				return "CN".equals(country) ? "链接已打开" : "連結已開啟";
+			}
+			return "Link opened";
+		}
+		if ("to_be_continued".equals(key)) {
+			if ("zh".equals(lang)) {
+				return "CN".equals(country) ? "未完待续..." : "未完待續...";
+			}
+			return "To be continued...";
+		}
 		if ("cannot_open_url".equals(key)) {
 			if ("zh".equals(lang)) {
 				return "CN".equals(country) ? "无法打开链接" : "無法開啟連結";
 			}
 			return "Cannot open link";
 		}
+		// 下载对话框相关
+		if ("download_dialog_share".equals(key)) {
+			if ("zh".equals(lang)) {
+				return "CN".equals(country) ? "分享" : "分享";
+			}
+			return "Share";
+		}
+		if ("share_started".equals(key)) {
+			if ("zh".equals(lang)) {
+				return "CN".equals(country) ? "已启动分享" : "已啟動分享";
+			}
+			return "Share started";
+		}
+
+		if ("share_failed".equals(key)) {
+			if ("zh".equals(lang)) {
+				return "CN".equals(country) ? "分享失败" : "分享失敗";
+			}
+			return "Share failed";
+		}
+		/* ================== 下载对话框分享相关 ================== */
+		if ("download_dialog_share_switch".equals(key)) {
+			if ("zh".equals(lang)) {
+				return "CN".equals(country) ? "下载分享" : "下載分享";
+			}
+			return "Download Share";
+		}
+		if ("download_dialog_share_hint".equals(key)) {
+			if ("zh".equals(lang)) {
+				return "CN".equals(country) ? "在下载对话框中添加分享按钮，便于分享到其他应用" : "在下載對話框中添加分享按鈕，便於分享到其他应用";
+			}
+			return "Add a share button in the download dialog box to facilitate sharing to other applications";
+		}
+		if ("download_dialog_share_enabled".equals(key)) {
+			if ("zh".equals(lang)) {
+				return "CN".equals(country) ? "下载分享功能已启用" : "下載分享功能已啟用";
+			}
+			return "Download share feature enabled";
+		}
+		if ("download_dialog_share_disabled".equals(key)) {
+			if ("zh".equals(lang)) {
+				return "CN".equals(country) ? "下载分享功能已禁用" : "下載分享功能已禁用";
+			}
+			return "Download share feature disabled";
+		}
+
+		/* ================== 新年彩蛋相关 ================== */
+		if ("new_year_wish".equals(key)) {
+			if ("zh".equals(lang)) {
+				return "CN".equals(country) ? "2026新年快乐！感谢您使用BetterVia！" : "2026新年快樂！感謝您使用BetterVia！";
+			}
+			return "Happy New Year 2026! Thank you for using BetterVia!";
+		}
+		if ("new_year_message".equals(key)) {
+			if ("zh".equals(lang)) {
+				return "CN".equals(country) ? "愿新的一年里：代码无bug，功能更强大！" : "願新的一年裡：代碼無bug，功能更強大！";
+			}
+			return "Wish you in the new year: No bugs in code, more powerful features!";
+		}
+		if ("new_year_title".equals(key)) {
+			if ("zh".equals(lang)) {
+				return "CN".equals(country) ? "🎉 2026 新年快乐！ 🎉" : "🎉 2026 新年快樂！ 🎉";
+			}
+			return "🎉 Happy New Year 2026! 🎉";
+		}
+		if ("new_year_wish_text".equals(key)) {
+			if ("zh".equals(lang)) {
+				return "CN".equals(country)
+						? "感谢您使用BetterVia！愿新的一年里：\n✨ 代码无bug，功能更强大 ✨\n🎁 更新更及时，体验更流畅 🎁"
+						: "感謝您使用BetterVia！願新的一年裡：\n✨ 代碼無bug，功能更強大 ✨\n🎁 更新更及時，體驗更流暢 🎁";
+			}
+			return "Thanks for using BetterVia! May the new year bring:\n✨ Bug-free code and more powerful features ✨\n🎁 Timelier updates and smoother experience 🎁";
+		}
+		if ("new_year_toast".equals(key)) {
+			if ("zh".equals(lang)) {
+				return "CN".equals(country) ? "新年快乐，感谢支持" : "新年快樂，感謝支持";
+			}
+			return "Happy New Year and thanks for your support";
+		}
+		if ("new_year_fireworks_text".equals(key)) {
+			if ("zh".equals(lang)) {
+				return "CN".equals(country) ? "2026 新年快乐" : "2026 新年快樂";
+			}
+			return "Happy New Year 2026";
+		}
+		if ("new_year_fireworks_subtitle".equals(key)) {
+			if ("zh".equals(lang)) {
+				return "CN".equals(country) ? "BetterVia 感谢您的支持！" : "BetterVia 感謝您的支持！";
+			}
+			return "BetterVia thanks for your support!";
+		}
 
 		return "";
 	}
 
-	private Locale getUserLocale(Context ctx) {
-		String saved = getSavedLanguage(ctx);
-		if ("auto".equals(saved) || saved.isEmpty()) {
-			Configuration cfg = ctx.getResources().getConfiguration();
-			return (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N)
-					? cfg.getLocales().get(0)
-					: cfg.locale;
-		}
-		switch (saved) {
-			case "zh-CN" :
+	private static Locale getUserLocale(Context ctx) {
+		try {
+			// 使用静态方法获取保存的语言设置
+			String saved = getSavedLanguageStatic(ctx);
+			if ("auto".equals(saved)) {
+				// 自动检测系统语言
+				Locale locale;
+				if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+					locale = ctx.getResources().getConfiguration().getLocales().get(0);
+				} else {
+					locale = ctx.getResources().getConfiguration().locale;
+				}
+				return locale;
+			} else if ("zh-CN".equals(saved)) {
 				return Locale.SIMPLIFIED_CHINESE;
-			case "zh-TW" :
+			} else if ("zh-TW".equals(saved)) {
 				return Locale.TRADITIONAL_CHINESE;
-			case "en" :
+			} else if ("en".equals(saved)) {
 				return Locale.ENGLISH;
-			default :
-				return Locale.getDefault();
+			}
+			return Locale.getDefault();
+		} catch (Exception e) {
+			return Locale.getDefault();
 		}
 	}
+
 }
 

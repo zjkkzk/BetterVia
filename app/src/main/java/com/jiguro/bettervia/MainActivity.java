@@ -53,6 +53,7 @@ public class MainActivity extends Activity {
 	private static final int UPDATE_SOURCE_GITHUB = 0;
 	private static final int UPDATE_SOURCE_GITEE = 1;
 
+	// 修正 GitHub URL - 使用 raw.githubusercontent.com
 	private static final String GITHUB_UPDATE_URL = "https://raw.githubusercontent.com/JiGuroLGC/BetterVia/main/update.json";
 	private static final String GITEE_UPDATE_URL = "https://gitee.com/JiGuro/BetterVia/raw/master/update.json";
 
@@ -60,8 +61,8 @@ public class MainActivity extends Activity {
 
 	// 预设的包名和版本号
 	private static final String EXPECTED_PACKAGE_NAME = "com.jiguro.bettervia";
-	private static final int EXPECTED_VERSION_CODE = 20251202;
-	private static final String EXPECTED_VERSION_NAME = "1.2.0";
+	private static final int EXPECTED_VERSION_CODE = 20260101;
+	private static final String EXPECTED_VERSION_NAME = "1.3.0";
 
 	// 界面文本组件引用
 	private TextView appNameText;
@@ -81,7 +82,7 @@ public class MainActivity extends Activity {
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 
-        // 此处省略部分代码...
+	    /* ================== 此处省略部分代码... ================== */
 
 		// 首先检查用户是否已经选择了语言
 		if (!isLanguageSelected()) {
@@ -109,7 +110,87 @@ public class MainActivity extends Activity {
 		}
 	}
 
-    // 此处省略部分方法...
+    /* ================== 此处省略部分代码... ================== */
+
+	private void showTamperedAppDialog() {
+		runOnUiThread(new Runnable() {
+			@Override
+			public void run() {
+				// 获取当前语言设置
+				SharedPreferences sp = getSharedPreferences(SP_NAME, MODE_PRIVATE);
+				int language = sp.getInt(KEY_LANGUAGE, LANGUAGE_AUTO);
+
+				// 根据语言设置选择相应的标题和消息
+				String title, message;
+
+				switch (language) {
+					case LANGUAGE_SIMPLIFIED_CHINESE :
+						title = "安全检测异常";
+						message = "检测到应用修改痕迹或存在安全风险！\n为了您的系统安全，程序将会自动退出。\n请下载正版软件或清空存储重试。";
+						break;
+					case LANGUAGE_TRADITIONAL_CHINESE :
+						title = "安全檢測異常";
+						message = "檢測到應用修改痕跡或存在安全風險！\n為了您的系統安全，程式將會自動退出。\n請下載正版軟體或清空存儲重試。";
+						break;
+					case LANGUAGE_ENGLISH :
+					case LANGUAGE_AUTO :
+					default :
+						// 如果是自动选择，根据系统语言决定
+						if (language == LANGUAGE_AUTO) {
+							Locale systemLocale;
+							if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+								systemLocale = getResources().getConfiguration().getLocales().get(0);
+							} else {
+								systemLocale = getResources().getConfiguration().locale;
+							}
+
+							String languageCode = systemLocale.getLanguage();
+							if (languageCode.startsWith("zh")) {
+								String country = systemLocale.getCountry();
+								if ("TW".equals(country) || "HK".equals(country) || "MO".equals(country)) {
+									title = "安全檢測異常";
+									message = "檢測到應用修改痕跡或存在安全風險！\n為了您的系統安全，程式將會自動退出。\n請下載正版軟體或清空存儲重試。";
+								} else {
+									title = "安全检测异常";
+									message = "检测到应用修改痕迹或存在安全风险！\n为了您的系统安全，程序将会自动退出。\n请下载正版软件或清空存储重试。";
+								}
+							} else {
+								title = "Security Detection Exception";
+								message = "Application modification detected or security risk exists!\nFor your system security, the program will exit automatically.\nPlease download the official version or clear storage and try again.";
+							}
+						} else {
+							title = "Security Detection Exception";
+							message = "Application modification detected or security risk exists!\nFor your system security, the program will exit automatically.\nPlease download the official version or clear storage and try again.";
+						}
+						break;
+				}
+
+				final AlertDialog dialog = new AlertDialog.Builder(MainActivity.this).setTitle(title)
+						.setMessage(message).setCancelable(false)
+						.setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+							@Override
+							public void onClick(DialogInterface dialog, int which) {
+								finish();
+							}
+						}).create();
+
+				dialog.show();
+
+				// 3秒后自动退出
+				new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+					@Override
+					public void run() {
+						if (!isFinishing() && !isDestroyed()) {
+							if (dialog.isShowing()) {
+								dialog.dismiss();
+							}
+							finish();
+						}
+					}
+				}, 3000);
+			}
+		});
+	}
 
 	/**
 	 * 检查用户是否已经选择了语言
@@ -1590,56 +1671,7 @@ public class MainActivity extends Activity {
 				});
 	}
 
-	private void performSecurityFixWithRoot() {
-		new Thread(new Runnable() {
-			@Override
-			public void run() {
-				boolean fixedPrivate = fixConfigInPrivateDirectories();
-				boolean fixedPublic = fixConfigInPublicDirectoryWithRoot();
-
-				final boolean result = fixedPrivate || fixedPublic;
-				runOnUiThread(new Runnable() {
-					@Override
-					public void run() {
-						if (result) {
-							Toast.makeText(MainActivity.this, getString(R.string.security_fix_success),
-									Toast.LENGTH_LONG).show();
-						} else {
-							Toast.makeText(MainActivity.this, getString(R.string.security_fix_no_issue),
-									Toast.LENGTH_SHORT).show();
-						}
-					}
-				});
-			}
-		}).start();
-	}
-
-	private void performSecurityFixWithoutRoot() {
-		new Thread(new Runnable() {
-			@Override
-			public void run() {
-				boolean fixed = fixConfigInPublicDirectory();
-
-				final boolean result = fixed;
-				runOnUiThread(new Runnable() {
-					@Override
-					public void run() {
-						if (result) {
-							Toast.makeText(MainActivity.this, getString(R.string.security_fix_success),
-									Toast.LENGTH_LONG).show();
-							Toast.makeText(MainActivity.this, getString(R.string.security_fix_suggest_root),
-									Toast.LENGTH_LONG).show();
-						} else {
-							Toast.makeText(MainActivity.this, getString(R.string.security_fix_no_issue),
-									Toast.LENGTH_SHORT).show();
-						}
-					}
-				});
-			}
-		}).start();
-	}
-
-    // 此处省略部分方法...
+    /* ================== 此处省略部分代码... ================== */
 
 	@Override
 	protected void onDestroy() {
