@@ -371,6 +371,7 @@
 | Android IDE | [Android IDE - GitHub](https://github.com/AndroidIDEOfficial/AndroidIDE) | 开发打包软件 |
 | 酷安 @半烟半雨溪桥畔 | [半梦半醒 - Gitee](https://gitee.com/daybreak166/) | 提供主题等资料参考 |
 | 酷安 @sgfox | [sgfox - 拾穗收集整理](https://www.sgfox.cc/archives/via-shisui.html) | 提供“拾穗”内容 |
+| 酷安 42岁大叔 | [酷安 - 有本事你发一个出来让我们用](http://www.coolapk.com/u/4178406) | 反馈bug |
 
 > [!NOTE]
 > 由于人数过多，这里不一一列出，详见模块各详情页面
