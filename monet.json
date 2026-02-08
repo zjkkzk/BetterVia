@@ -1,0 +1,139 @@
+{
+  "config_version": "1.0",
+  "last_updated": "2024-01-20",
+  "description": "BetterVia远程配置文件 - Via浏览器修改版资源",
+  
+  "apk_files": [
+    {
+      "id": "via_domestic",
+      "name": "Via国内版",
+      "version": "6.9.0",
+      "sources": [
+        "https://raw.githubusercontent.com/JiGuroLGC/BetterVia/main/Monet/Via_6.9.0.apk",
+        "https://gitee.com/jiguro/BetterVia/raw/master/Monet/Via_6.9.0.apk"
+      ],
+      "type": "apk"
+    },
+    {
+      "id": "via_international",
+      "name": "Via国际版",
+      "version": "6.9.0_GP",
+      "sources": [
+        "https://raw.githubusercontent.com/JiGuroLGC/BetterVia/main/Monet_GP/Via_6.9.0_GP.apk",
+        "https://gitee.com/jiguro/BetterVia/raw/master/Monet_GP/Via_6.9.0_GP.apk"
+      ],
+      "type": "apk"
+    }
+  ],
+  
+  "resources_files": [
+    {
+      "id": "resources_domestic",
+      "name": "Via国内版资源文件",
+      "sources": [
+        "https://raw.githubusercontent.com/JiGuroLGC/BetterVia/main/Monet/resources.arsc",
+        "https://gitee.com/jiguro/BetterVia/raw/master/Monet/resources.arsc"
+      ],
+      "type": "resources.arsc",
+      "compatible_with": ["via_domestic"]
+    },
+    {
+      "id": "resources_international",
+      "name": "Via国际版资源文件",
+      "sources": [
+        "https://raw.githubusercontent.com/JiGuroLGC/BetterVia/main/Monet_GP/resources.arsc",
+        "https://gitee.com/jiguro/BetterVia/raw/master/Monet_GP/resources.arsc"
+      ],
+      "type": "resources.arsc",
+      "compatible_with": ["via_international"]
+    }
+  ],
+  
+    "key_files": [
+    {
+      "id": "key_1",
+      "name": "签名文件1",
+      "sources": [
+        "https://raw.githubusercontent.com/JiGuroLGC/BetterVia/main/platform.x509.pem",
+        "https://gitee.com/jiguro/BetterVia/raw/master/platform.x509.pem"
+      ],
+      "type": "platform.x509.pem",
+      "compatible_with": ["via_domestic", "via_international"]
+    },
+    {
+      "id": "key_2",
+      "name": "签名文件2",
+      "sources": [
+        "https://raw.githubusercontent.com/JiGuroLGC/BetterVia/main/platform.pk8",
+        "https://gitee.com/jiguro/BetterVia/raw/master/platform.pk8"
+      ],
+      "type": "platform.pk8",
+      "compatible_with": ["via_domestic", "via_international"]
+    }
+  ],
+  
+  "mod_files": [
+    {
+      "id": "cb_xml",
+      "name": "cb.xml",
+      "description": "配置文件一",
+      "sources": [
+        "https://raw.githubusercontent.com/JiGuroLGC/BetterVia/main/Monet/cb.xml",
+        "https://gitee.com/jiguro/BetterVia/raw/master/Monet/cb.xml"
+      ],
+      "target_path": "/r/o/cb.xml",
+      "compatible_with": ["via_domestic", "via_international"]
+    },
+    {
+      "id": "cc_xml",
+      "name": "cc.xml",
+      "description": "配置文件二",
+      "sources": [
+        "https://raw.githubusercontent.com/JiGuroLGC/BetterVia/main/Monet/cc.xml",
+        "https://gitee.com/jiguro/BetterVia/raw/master/Monet/cc.xml"
+      ],
+      "target_path": "/r/o/cc.xml",
+      "compatible_with": ["via_domestic", "via_international"]
+    },
+    {
+      "id": "cx_xml",
+      "name": "cx.xml",
+      "description": "配置文件三",
+      "sources": [
+        "https://raw.githubusercontent.com/JiGuroLGC/BetterVia/main/Monet/cx.xml",
+        "https://gitee.com/jiguro/BetterVia/raw/master/Monet/cx.xml"
+      ],
+      "target_path": "/r/o/cx.xml",
+      "compatible_with": ["via_domestic", "via_international"]
+    },
+    {
+      "id": "ic_launcher_xml",
+      "name": "ic_launcher.xml",
+      "description": "启动器图标配置文件",
+      "sources": [
+        "https://raw.githubusercontent.com/JiGuroLGC/BetterVia/main/Monet/ic_launcher.xml",
+        "https://gitee.com/jiguro/BetterVia/raw/master/Monet/ic_launcher.xml"
+      ],
+      "target_path": "/r/y/ic_launcher.xml",
+      "compatible_with": ["via_domestic", "via_international"]
+    },
+    {
+      "id": "logo_svg",
+      "name": "logo.svg",
+      "description": "SVG格式logo",
+      "sources": [
+        "https://raw.githubusercontent.com/JiGuroLGC/BetterVia/main/Monet/logo.svg",
+        "https://gitee.com/jiguro/BetterVia/raw/master/Monet/logo.svg"
+      ],
+      "target_path": "/assets/logo.svg",
+      "compatible_with": ["via_domestic", "via_international"]
+    }
+  ],
+  
+  "metadata": {
+    "author": "JiGuroLGC",
+    "project": "BetterVia",
+    "note": "无",
+    "extensible": true
+  }
+}
