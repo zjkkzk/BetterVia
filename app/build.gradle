@@ -7,9 +7,9 @@ android {
     defaultConfig {
         applicationId "com.jiguro.bettervia"
         minSdkVersion 21
-        targetSdkVersion 26
-        versionCode 20260111
-        versionName "1.4.0"
+        targetSdkVersion 35
+        versionCode 20260208
+        versionName "1.5.0"
     }
 
     buildTypes {
@@ -23,4 +23,5 @@ android {
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
 	compileOnly fileTree(dir: 'libs/compile_only', include: ['*.jar'])
+	implementation 'com.android.tools.build:apksig:4.2.0'
 }

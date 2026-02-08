@@ -5,7 +5,14 @@
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.INTERNET" />
-
+    
+    <!-- Android 11+ 包可见性声明 -->
+    <queries>
+        <!-- 声明需要查询的应用 -->
+        <package android:name="mark.via" />
+        <package android:name="mark.via.gp" />
+    </queries>
+    
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"

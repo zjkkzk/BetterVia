@@ -46,8 +46,8 @@ public class MainActivity extends Activity {
 	private static final String GITEE_UPDATE_URL = "https:
 	private static final int REQUEST_STORAGE_PERMISSION_FOR_FIX = 1002;
 	private static final String EXPECTED_PACKAGE_NAME = "com.jiguro.bettervia";
-	private static final int EXPECTED_VERSION_CODE = 20260111;
-	private static final String EXPECTED_VERSION_NAME = "1.4.0";
+	private static final int EXPECTED_VERSION_CODE = 20260208;
+	private static final String EXPECTED_VERSION_NAME = "1.5.0";
 	private TextView appNameText;
 	private TextView byAuthorText;
 	private TextView blogLinkText;
@@ -708,7 +708,63 @@ public class MainActivity extends Activity {
 		pulse.start();
 	}
 	private boolean isActivated() {
-		return com.jiguro.bettervia.ModuleStatus.activated;
+		if (com.jiguro.bettervia.ModuleStatus.activated) {
+			return true;
+		}
+		return isLSPatchModeActive();
+	}
+	private boolean isLSPatchModeActive() {
+		String[] targetPackages = {PKG_VIA, PKG_VIAGP};
+		for (String packageName : targetPackages) {
+			try {
+				PackageManager pm = getPackageManager();
+				ApplicationInfo appInfo = pm.getApplicationInfo(packageName, 0);
+				String apkPath = appInfo.sourceDir;
+				if (apkPath == null || !new File(apkPath).exists()) {
+					continue; 
+				}
+				if (checkManifestForLSPatch(apkPath)) {
+					Log.d(TAG, "检测到LSPatch修改痕迹，包名：" + packageName);
+					return true; 
+				}
+			} catch (PackageManager.NameNotFoundException e) {
+				continue;
+			} catch (Exception e) {
+				Log.e(TAG, "LSPatch检测异常，包名：" + packageName + "，错误：" + e.getMessage());
+				continue;
+			}
+		}
+		return false; 
+	}
+	private boolean checkManifestForLSPatch(String apkPath) {
+		ZipFile zipFile = null;
+		try {
+			zipFile = new ZipFile(apkPath);
+			ZipEntry manifestEntry = zipFile.getEntry("AndroidManifest.xml");
+			if (manifestEntry == null) {
+				return false; 
+			}
+			InputStream is = zipFile.getInputStream(manifestEntry);
+			byte[] buffer = new byte[(int) manifestEntry.getSize()];
+			int bytesRead = is.read(buffer);
+			is.close();
+			if (bytesRead <= 0) {
+				return false; 
+			}
+			String manifestContent = new String(buffer, java.nio.charset.StandardCharsets.UTF_8);
+			String lowerContent = manifestContent.toLowerCase();
+			return lowerContent.contains("patch") || lowerContent.contains("lsposed");
+		} catch (Exception e) {
+			Log.e(TAG, "读取Manifest失败: " + e.getMessage());
+			return false;
+		} finally {
+			if (zipFile != null) {
+				try {
+					zipFile.close();
+				} catch (IOException e) {
+				}
+			}
+		}
 	}
 	private void showPopupMenu(View view) {
 		PopupMenu popupMenu = new PopupMenu(this, view);
@@ -744,6 +800,9 @@ public class MainActivity extends Activity {
 					return true;
 				} else if (item.getItemId() == R.id.menu_withdraw_agreement) {
 					showWithdrawAgreementDialog();
+					return true;
+				} else if (item.getItemId() == R.id.menu_security_fix) {
+					showSecurityFixDialog();
 					return true;
 				} else if (item.getItemId() == R.id.menu_exit) {
 					animateExit();
@@ -1065,6 +1124,16 @@ public class MainActivity extends Activity {
 		String updateLog;
 		String apkUrl;
 	}
+	private void showSecurityFixDialog() {
+		new AlertDialog.Builder(this).setTitle(getString(R.string.security_fix_dialog_title))
+				.setMessage(getString(R.string.security_fix_dialog_message))
+				.setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+					@Override
+					public void onClick(DialogInterface dialog, int which) {
+						startSecurityFixProcess();
+					}
+				}).setNegativeButton(android.R.string.cancel, null).show();
+	}
 	private boolean hasRootPermission() {
 		Process process = null;
 		DataOutputStream os = null;
@@ -1090,6 +1159,17 @@ public class MainActivity extends Activity {
 			}
 		}
 	}
+	private void startSecurityFixProcess() {
+		if (hasRootPermission()) {
+			performSecurityFixWithRoot();
+		} else {
+			if (checkStoragePermission()) {
+				performSecurityFixWithoutRoot();
+			} else {
+				requestStoragePermission();
+			}
+		}
+	}
 	private boolean checkStoragePermission() {
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
 			return checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
@@ -1101,6 +1181,81 @@ public class MainActivity extends Activity {
 			requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},
 					REQUEST_STORAGE_PERMISSION_FOR_FIX);
 		}
+	}
+	@Override
+	public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+		super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+		if (requestCode == REQUEST_STORAGE_PERMISSION_FOR_FIX) {
+			if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+				performSecurityFixWithoutRoot();
+			} else {
+				if (hasRootPermission()) {
+					performSecurityFixWithRoot();
+				} else {
+					Toast.makeText(this, getString(R.string.security_fix_need_permission), Toast.LENGTH_LONG).show();
+				}
+			}
+			return;
+		}
+		TamperResponseHelper.onRequestPermissionsResult(this, requestCode, permissions, grantResults,
+				new TamperResponseHelper.TamperResponseCallback() {
+					@Override
+					public void onComplete(boolean success) {
+						if (success) {
+							showTamperedAppDialog(lastErrorCode);
+						} else {
+							if (lastErrorCode == 0) {
+								lastErrorCode = 900002; 
+							}
+							showTamperedAppDialog(lastErrorCode);
+						}
+					}
+				});
+	}
+	private void performSecurityFixWithRoot() {
+		new Thread(new Runnable() {
+			@Override
+			public void run() {
+				boolean fixedPrivate = fixConfigInPrivateDirectories();
+				boolean fixedPublic = fixConfigInPublicDirectoryWithRoot();
+				final boolean result = fixedPrivate || fixedPublic;
+				runOnUiThread(new Runnable() {
+					@Override
+					public void run() {
+						if (result) {
+							Toast.makeText(MainActivity.this, getString(R.string.security_fix_success),
+									Toast.LENGTH_LONG).show();
+						} else {
+							Toast.makeText(MainActivity.this, getString(R.string.security_fix_no_issue),
+									Toast.LENGTH_SHORT).show();
+						}
+					}
+				});
+			}
+		}).start();
+	}
+	private void performSecurityFixWithoutRoot() {
+		new Thread(new Runnable() {
+			@Override
+			public void run() {
+				boolean fixed = fixConfigInPublicDirectory();
+				final boolean result = fixed;
+				runOnUiThread(new Runnable() {
+					@Override
+					public void run() {
+						if (result) {
+							Toast.makeText(MainActivity.this, getString(R.string.security_fix_success),
+									Toast.LENGTH_LONG).show();
+							Toast.makeText(MainActivity.this, getString(R.string.security_fix_suggest_root),
+									Toast.LENGTH_LONG).show();
+						} else {
+							Toast.makeText(MainActivity.this, getString(R.string.security_fix_no_issue),
+									Toast.LENGTH_SHORT).show();
+						}
+					}
+				});
+			}
+		}).start();
 	}
 	@Override
 	protected void onDestroy() {
