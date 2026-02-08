@@ -1,9 +1,9 @@
 {
-  "versionName": "1.4.0",
+  "versionName": "1.5.0",
   "updateLog": {
-    "en": "1. Added support for multiple package names\n2. Further fixes for crashes on some models and added error code support\n3. Added ability to disable CustomTabs\n4. Added select all button in Cookie Manager\n5. Simplified some complex logic and enhanced user experience\n6. Fixed bugs including unresponsiveness when clicking module buttons",
-    "zh-CN": "1. 新增了对多包名的支持\n2. 进一步修复了在某些机型上导致崩溃的问题，并添加了错误代码支持\n3. 新增了禁用CustomTabs的功能\n4. 在Cookie管理器中新增全选按钮\n5. 简化了一些复杂的逻辑，增强用户体验\n6. 修复了包括点击模块按钮无反应等亿些Bug",
-    "zh-TW": "1. 新增了對多包名的支持\n2. 進一步修復了在某些機型上導致崩潰的問題，並添加了錯誤代碼支持\n3. 新增了禁用CustomTabs的功能\n4. 在Cookie管理器中新增全選按鈕\n5. 簡化了一些複雜的邏輯，增強用戶體驗\n6. 修復了包括點擊模塊按鈕無反應等億些Bug"
+    "en": "1. Fixed a check error on the ported system\n2. Added a menu bar blocking feature, allowing long-press menus to be blocked on any webpage\n3. Added Developer Mode for easier log output\n4. New Monet Moment feature added, enabling Monet-style color extraction through package modification. For detailed implementation, refer to the module page\n5. Optimized the module's running logic, greatly improving string retrieval efficiency\n6. Added numerous animations and detail optimizations",
+    "zh-CN": "1. 修复了一个在移植系统上的检查错误\n2. 新增屏蔽菜单栏功能，可在任意网页屏蔽长按菜单\n3. 新增开发者模式，便于日志输出\n4. 新增莫奈时刻功能，通过改包实现莫奈取色，具体实现详见模块页面\n5. 优化了模块的运行逻辑，极大提高字符串获取效率\n6. 新增多处动画和细节优化",
+    "zh-TW": "1. 修復了移植系統上的一個檢查錯誤\n2. 新增選單列屏蔽功能，可在任意網頁屏蔽長按選單\n3. 新增開發者模式，便於日誌輸出\n4. 新增莫奈時刻功能，通過修改資源包實現莫奈取色，具體實現請參閱模組頁面。\n5. 優化了模組的執行邏輯，大幅提升字串獲取效率\n6. 新增多處動畫與細節優化"
   },
-  "apkUrl": "https://github.com/JiGuroLGC/BetterVia/releases/download/20260111_1.4.0/BetterVia_1.4.0.apk"
+  "apkUrl": "https://github.com/JiGuroLGC/BetterVia/releases/download/20260208_1.5.0/BetterVia_1.5.0.apk"
 }
