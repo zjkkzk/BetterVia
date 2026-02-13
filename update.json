@@ -1,9 +1,9 @@
 {
-  "versionName": "1.5.0",
+  "versionName": "1.6.0",
   "updateLog": {
-    "en": "1. Fixed a check error on the ported system\n2. Added a menu bar blocking feature, allowing long-press menus to be blocked on any webpage\n3. Added Developer Mode for easier log output\n4. New Monet Moment feature added, enabling Monet-style color extraction through package modification. For detailed implementation, refer to the module page\n5. Optimized the module's running logic, greatly improving string retrieval efficiency\n6. Added numerous animations and detail optimizations",
-    "zh-CN": "1. 修复了一个在移植系统上的检查错误\n2. 新增屏蔽菜单栏功能，可在任意网页屏蔽长按菜单\n3. 新增开发者模式，便于日志输出\n4. 新增莫奈时刻功能，通过改包实现莫奈取色，具体实现详见模块页面\n5. 优化了模块的运行逻辑，极大提高字符串获取效率\n6. 新增多处动画和细节优化",
-    "zh-TW": "1. 修復了移植系統上的一個檢查錯誤\n2. 新增選單列屏蔽功能，可在任意網頁屏蔽長按選單\n3. 新增開發者模式，便於日誌輸出\n4. 新增莫奈時刻功能，通過修改資源包實現莫奈取色，具體實現請參閱模組頁面。\n5. 優化了模組的執行邏輯，大幅提升字串獲取效率\n6. 新增多處動畫與細節優化"
+    "en": "1. Migrated support to Via 7.0.0\n2. Fixed a permission-related validation error\n3. Added storage management functionality\n4. Officially introduced Monet Moments with further workflow optimizations\n5. Resolved bugs and enhanced user experience\n6. Wishing you all: \nHooves tread snow, greeting the new year’s light; Fortune arrives at the door, blessing the harvest bright",
+    "zh-CN": "1. 转移支持至 Via 7.0.0 版本\n2. 修复了一个因权限问题的检查错误\n3. 新增存储管理功能\n4. 正式引入莫奈时刻，对流程进一步优化\n5. 修复 bug ，增强用户体验\n6. 恭祝各位：\n马蹄踏雪迎新岁，福到门庭贺丰年",
+    "zh-TW": "1. 轉移支持至 Via 7.0.0 版本\n2. 修復因權限問題導致的檢查錯誤\n3. 新增儲存管理功能\n4. 正式導入莫奈時刻，進一步優化流程\n5. 修復錯誤，提升使用者體驗\n6. 恭祝各位：\n馬蹄踏雪迎新歲，福氣滿門慶豐年"
   },
-  "apkUrl": "https://github.com/JiGuroLGC/BetterVia/releases/download/20260208_1.5.0/BetterVia_1.5.0.apk"
+  "apkUrl": "https://github.com/JiGuroLGC/BetterVia/releases/download/20260213_1.6.0/BetterVia_1.6.0.apk"
 }
