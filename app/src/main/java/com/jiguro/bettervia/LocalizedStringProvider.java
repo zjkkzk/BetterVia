@@ -164,9 +164,9 @@ public class LocalizedStringProvider {
 		addLocalizedString("eye_protection_preview_title", "zh-CN", "效果预览");
 		addLocalizedString("eye_protection_preview_title", "zh-TW", "效果預覽");
 		addLocalizedString("eye_protection_preview_title", "en", "Preview");
-		addLocalizedString("eye_protection_sample_text", "zh-CN", "片云天共远，永夜月同孤。");
-		addLocalizedString("eye_protection_sample_text", "zh-TW", "片雲天共遠，永夜月同孤。");
-		addLocalizedString("eye_protection_sample_text", "en", "This is sample text");
+		addLocalizedString("eye_protection_sample_text", "zh-CN", "风烟俱净，天山共色。");
+		addLocalizedString("eye_protection_sample_text", "zh-TW", "風煙俱淨，天山共色。");
+		addLocalizedString("eye_protection_sample_text", "en", "This is sample text .");
 		addLocalizedString("eye_protection_preview_hint", "zh-CN", "开启护眼模式后可实时预览效果");
 		addLocalizedString("eye_protection_preview_hint", "zh-TW", "開啟護眼模式後可實時預覽效果");
 		addLocalizedString("eye_protection_preview_hint", "en",
@@ -847,11 +847,11 @@ public class LocalizedStringProvider {
 		addLocalizedString("version_error_title", "zh-TW", "版本錯誤");
 		addLocalizedString("version_error_title", "en", "Version Error");
 		addLocalizedString("version_error_message", "zh-CN",
-				"检测到您的Via版本为%s，本模块版本适用于Via 6.9.0，建议您切换Via至模块支持版本。\n继续可能会导致模块失效和Via闪退，您确定要继续吗？");
+				"检测到您的 Via 版本为 %s ，本模块版本适用于 Via 7.0.0，建议您切换 Via 至模块支持版本。\n继续可能会导致模块失效和 Via 闪退，您确定要继续吗？");
 		addLocalizedString("version_error_message", "zh-TW",
-				"檢測到您的Via版本為%s，本模組版本適用於Via 6.9.0，建議您切換Via至模組支援版本。\n繼續可能會導致模組失效和Via閃退，您確定要繼續嗎？");
+				"檢測到您的 Via 版本為 %s ，本模組版本適用於 Via 7.0.0，建議您切換 Via 至模組支援版本。\n繼續可能會導致模組失效和 Via 閃退，您確定要繼續嗎？");
 		addLocalizedString("version_error_message", "en",
-				"Detected your Via version is %s, this module version is suitable for Via 6.9.0, it is recommended to switch Via to the version supported by the module.\nContinuing may cause the module to fail and Via to crash, are you sure you want to continue?");
+				"Detected your Via version is %s, this module version is suitable for Via 7.0.0, it is recommended to switch Via to the version supported by the module.\nContinuing may cause the module to fail and Via to crash, are you sure you want to continue?");
 		addLocalizedString("version_error_dont_show_again", "zh-CN", "不再提示");
 		addLocalizedString("version_error_dont_show_again", "zh-TW", "不再提示");
 		addLocalizedString("version_error_dont_show_again", "en", "Don't show again");
@@ -900,33 +900,45 @@ public class LocalizedStringProvider {
 		addLocalizedString("about_update_title", "zh-CN", "更新");
 		addLocalizedString("about_update_title", "zh-TW", "更新");
 		addLocalizedString("about_update_title", "en", "Update");
-		addLocalizedString("about_update_log0", "zh-CN", "修复了一个在移植系统上的检查错误");
-		addLocalizedString("about_update_log0", "zh-TW", "修復了移植系統上的一個檢查錯誤");
-		addLocalizedString("about_update_log0", "en", "Fixed a check error on the ported system");
-		addLocalizedString("about_update_log1", "zh-CN", "新增屏蔽菜单栏功能，可在任意网页屏蔽长按菜单");
-		addLocalizedString("about_update_log1", "zh-TW", "新增選單列屏蔽功能，可在任意網頁屏蔽長按選單");
-		addLocalizedString("about_update_log1", "en",
-				"Added a menu bar blocking feature, allowing long-press menus to be blocked on any webpage");
-		addLocalizedString("about_update_log2", "zh-CN", "新增开发者模式，便于日志输出");
-		addLocalizedString("about_update_log2", "zh-TW", "新增開發者模式，便於日誌輸出");
-		addLocalizedString("about_update_log2", "en", "Added Developer Mode for easier log output");
-		addLocalizedString("about_update_log3", "zh-CN", "新增莫奈时刻功能，通过改包实现莫奈取色，具体实现详见模块页面");
-		addLocalizedString("about_update_log3", "zh-TW", "新增莫奈時刻功能，通過修改資源包實現莫奈取色，具體實現請參閱模組頁面");
+		addLocalizedString("about_update_log0", "zh-CN", "转移支持至 Via 7.0.0 版本");
+		addLocalizedString("about_update_log0", "zh-TW", "轉移支持至 Via 7.0.0 版本");
+		addLocalizedString("about_update_log0", "en", "Migrated support to Via 7.0.0");
+		addLocalizedString("about_update_log1", "zh-CN", "修复了一个因权限问题的检查错误");
+		addLocalizedString("about_update_log1", "zh-TW", "修復因權限問題導致的檢查錯誤");
+		addLocalizedString("about_update_log1", "en", "Fixed a permission-related validation error");
+		addLocalizedString("about_update_log2", "zh-CN", "新增存储管理功能");
+		addLocalizedString("about_update_log2", "zh-TW", "新增儲存管理功能");
+		addLocalizedString("about_update_log2", "en", "Added storage management functionality");
+		addLocalizedString("about_update_log3", "zh-CN", "正式引入莫奈时刻，对流程进一步优化");
+		addLocalizedString("about_update_log3", "zh-TW", "正式導入莫奈時刻，進一步優化流程");
 		addLocalizedString("about_update_log3", "en",
-				"New Monet Moment feature added, enabling Monet-style color extraction through package modification. For detailed implementation, refer to the module page");
-		addLocalizedString("about_update_log4", "zh-CN", "优化了模块的运行逻辑，极大提高字符串获取效率");
-		addLocalizedString("about_update_log4", "zh-TW", "優化了模組的執行邏輯，大幅提升字串獲取效率");
-		addLocalizedString("about_update_log4", "en",
-				"Optimized the module's running logic, greatly improving string retrieval efficiency");
-		addLocalizedString("about_update_log5", "zh-CN", "新增多处动画和细节优化");
-		addLocalizedString("about_update_log5", "zh-TW", "新增多處動畫與細節優化");
-		addLocalizedString("about_update_log5", "en", "Added numerous animations and detail optimizations");
+				"Officially introduced Monet Moments with further workflow optimizations");
+		addLocalizedString("about_update_log4", "zh-CN", "修复 bug ，增强用户体验");
+		addLocalizedString("about_update_log4", "zh-TW", "修復錯誤，提升使用者體驗");
+		addLocalizedString("about_update_log4", "en", "Resolved bugs and enhanced user experience");
+		addLocalizedString("about_update_log5", "zh-CN", "恭祝各位: \n马蹄踏雪迎新岁，福到门庭贺丰年");
+		addLocalizedString("about_update_log5", "zh-TW", "恭祝各位: \n馬蹄踏雪迎新歲，福氣滿門慶豐年");
+		addLocalizedString("about_update_log5", "en",
+				"Wishing you all: \nHooves tread snow, greeting the new year’s light; Fortune arrives at the door, blessing the harvest bright.");
 		addLocalizedString("about_thanks_title", "zh-CN", "鸣谢");
 		addLocalizedString("about_thanks_title", "zh-TW", "鳴謝");
 		addLocalizedString("about_thanks_title", "en", "Thanks");
-		addLocalizedString("about_thanks_content", "zh-CN", "AIDE+，AndroidIDE，AOSP，MT管理器");
-		addLocalizedString("about_thanks_content", "zh-TW", "AIDE+，AndroidIDE，AOSP，MT管理器");
-		addLocalizedString("about_thanks_content", "en", "AIDE+，AndroidIDE，AOSP，MT Manager");
+		addLocalizedString("about_thanks_content", "zh-CN",
+				"AIDE+，AndroidIDE，AOSP，Xposed Framework API，apksig，MT管理器，NP管理器，DeepSeek，Kimi，ChatGPT，Google Gemini，iFlow");
+		addLocalizedString("about_thanks_content", "zh-TW",
+				"AIDE+，AndroidIDE，AOSP，Xposed Framework API，apksig，MT管理器，NP管理器，DeepSeek，Kimi，ChatGPT，Google Gemini，iFlow");
+		addLocalizedString("about_thanks_content", "en",
+				"AIDE+, AndroidIDE, AOSP, Xposed Framework API, apksig, MT Manager, NP Manager, DeepSeek, Kimi, ChatGPT, Google Gemini, iFlow");
+		addLocalizedString("about_licence", "zh-CN", "BetterVia 为专有软件，未采用开源许可证，未经许可，不得引流、售卖、逆向及一切商业和修改");
+		addLocalizedString("about_licence", "zh-TW", "BetterVia 為專有軟體，未採用開源許可證，未經許可，不得引流、販賣、逆向及一切商業及修改");
+		addLocalizedString("about_licence", "en",
+				"BetterVia is proprietary software and is not licensed under an open-source license. Redistribution, sale, reverse engineering, or any commercial use and modification are prohibited without permission");
+		addLocalizedString("about_licence_apksig", "zh-CN",
+				"本软件使用了第三方开源组件 apksig - Android Open Source Project (AOSP) ，其采用许可证 Apache License 2.0 ，apksig 库的版权归属其原作者，受 Apache 2.0 许可证保护");
+		addLocalizedString("about_licence_apksig", "zh-TW",
+				"本軟體使用了第三方開源元件 apksig - Android Open Source Project (AOSP) ，其採用授權 Apache License 2.0 ，apksig 庫的版權歸屬其原作者，受 Apache 2.0 授權保護");
+		addLocalizedString("about_licence_apksig", "en",
+				"This software utilizes the third-party open-source component apksig - Android Open Source Project (AOSP), which is licensed under the Apache License 2.0. The copyright of the apksig library belongs to its original authors and is protected under the Apache 2.0 License");
 		addLocalizedString("about_thanks_others", "zh-CN", "因人数过多，不一一列举，详见模块各版面详细作者");
 		addLocalizedString("about_thanks_others", "zh-TW", "因人數過多，不一一列舉，詳見模塊各版面詳細作者");
 		addLocalizedString("about_thanks_others", "en",
@@ -992,9 +1004,9 @@ public class LocalizedStringProvider {
 		addLocalizedString("download_dialog_share_disabled", "zh-CN", "下载分享功能已禁用");
 		addLocalizedString("download_dialog_share_disabled", "zh-TW", "下載分享功能已禁用");
 		addLocalizedString("download_dialog_share_disabled", "en", "Download share feature disabled");
-		addLocalizedString("monet_title", "zh-CN", "莫奈时刻 (试验)");
-		addLocalizedString("monet_title", "zh-TW", "莫奈時刻 (試驗)");
-		addLocalizedString("monet_title", "en", "Monet Moment (Exp)");
+		addLocalizedString("monet_title", "zh-CN", "莫奈时刻");
+		addLocalizedString("monet_title", "zh-TW", "莫奈時刻");
+		addLocalizedString("monet_title", "en", "Monet Moment");
 		addLocalizedString("monet_config", "zh-CN", "配置");
 		addLocalizedString("monet_config", "zh-TW", "配置");
 		addLocalizedString("monet_config", "en", "Config");
@@ -1018,11 +1030,11 @@ public class LocalizedStringProvider {
 		addLocalizedString("monet_notes_title", "zh-TW", "注意事項");
 		addLocalizedString("monet_notes_title", "en", "Notes");
 		addLocalizedString("monet_notes_content", "zh-CN",
-				"•「莫奈取色」仅在 Android 12 及以上设备上才能够生效，运行美化版软件的设备必须满足需求\n• 强烈建议在运行该功能之前进行数据备份，特别是没有 Root 的用户，由于签名不同，会需要删除原版 Via\n• 修改包名和版本可能会导致某些未知问题，由于技术不够成熟，若确实需要修改，请您在安装后使用第三方修改器进行修改\n• 应选择合适的网络源和网络环境，保证资源下载过程不被中断\n• Via 安装包国内版来自 Via 官网，国外版来自 Google Play Store ，均通过正规途径获得\n• 修改版 Via 仅替换关于颜色和外观的资源，不进行任何其他修改\n• 该功能还在研发中，在某些设备上可能不够稳定，导致 Via 闪退，模块也可能因为权限问题，不能正确处理文件");
+				"•「莫奈取色」仅在 Android 12 及以上设备上才能够生效，运行美化版软件的设备必须满足需求\n• 强烈建议在运行该功能之前进行数据备份，特别是没有 Root 的用户，由于签名不同，会需要删除原版 Via\n• 修改包名和版本可能会导致某些未知问题，由于技术不够成熟，若确实需要修改，请您在安装后使用第三方修改器进行修改\n• 应选择合适的网络源和网络环境，保证资源下载过程不被中断\n• Via 安装包国内版来自 Via 官网，国外版来自 Google Play Store ，均通过正规途径获得\n• 修改版 Via 仅替换关于颜色和外观的资源，不进行任何其他修改\n• 该功能还在研发中，在某些设备上可能不够稳定，导致 Via 闪退，模块也可能因为权限问题，不能正确处理文件\n• 由于资源文件存储在云端，为了避免资源浪费，我们不会保留旧版资源，故如果您使用旧版本的 BetterVia 或 Via ，「莫奈时刻」功能中所输出的安装包也应是最新版本的 Via");
 		addLocalizedString("monet_notes_content", "zh-TW",
-				"•「莫奈取色」功能僅適用於 Android 12 及以上裝置，運行美化版軟體的設備必須滿足此需求\n• 強烈建議啟用此功能前進行資料備份，特別是未取得 Root 權限的用戶，因簽名差異需刪除原版 Via\n• 修改套件名稱與版本可能引發未知問題，因技術尚未成熟，若確需修改，建議安裝後使用第三方修改工具進行調整\n• 請選擇合適的網路來源與連線環境，確保資源下載過程不中斷\n• Via 安裝包國內版取自 Via 官網，國際版取自 Google Play Store，均透過正規管道取得\n• 修改版 Via 僅替換關於顏色和外觀的資源，不進行任何其他修改\n• 此功能仍在研發階段，部分裝置可能出現不穩定狀況導致 Via 閃退，模組亦可能因權限問題無法正確處理檔案");
+				"•「莫奈取色」功能僅適用於 Android 12 及以上裝置，運行美化版軟體的設備必須滿足此需求\n• 強烈建議啟用此功能前進行資料備份，特別是未取得 Root 權限的用戶，因簽名差異需刪除原版 Via\n• 修改套件名稱與版本可能引發未知問題，因技術尚未成熟，若確需修改，建議安裝後使用第三方修改工具進行調整\n• 請選擇合適的網路來源與連線環境，確保資源下載過程不中斷\n• Via 安裝包國內版取自 Via 官網，國際版取自 Google Play Store ，均透過正規管道取得\n• 修改版 Via 僅替換關於顏色和外觀的資源，不進行任何其他修改\n• 此功能仍在研發階段，部分裝置可能出現不穩定狀況導致 Via 閃退，模組亦可能因權限問題無法正確處理檔案\n• 由於資源檔案儲存在雲端，為避免資源浪費，我們不會保留舊版資源。因此，若您使用舊版本的 BetterVia 或 Via ，在「莫奈時刻」功能中輸出的安裝包也應為最新版本的 Via");
 		addLocalizedString("monet_notes_content", "en",
-				"• 「Monet Color Selection」 is only functional on Android 12+ devices; devices running the enhanced version must meet these requirements\n• Strongly recommend backing up data before enabling this feature, especially for non-rooted users. Due to differing signatures, the original Via app must be uninstalled\n• Modifying package names or versions may cause unknown issues. As the technology is not yet mature, if modification is necessary, use a third-party modifier after installation\n• Select appropriate network sources and environments to ensure uninterrupted resource downloads\n• The domestic version of Via's installation package originates from the official Via website, while the international version comes from the Google Play Store—both obtained through legitimate channels\n• The modified version of Via only replaces resources regarding color and appearance without any other modifications\n• This feature remains under development and may exhibit instability on certain devices, potentially causing Via crashes. Modules may also fail to process files correctly due to permission issues");
+				"• 「Monet Color Selection」 is only functional on Android 12+ devices; devices running the enhanced version must meet these requirements\n• Strongly recommend backing up data before enabling this feature, especially for non-rooted users. Due to differing signatures, the original Via app must be uninstalled\n• Modifying package names or versions may cause unknown issues. As the technology is not yet mature, if modification is necessary, use a third-party modifier after installation\n• Select appropriate network sources and environments to ensure uninterrupted resource downloads\n• The domestic version of Via's installation package originates from the official Via website, while the international version comes from the Google Play Store—both obtained through legitimate channels\n• The modified version of Via only replaces resources regarding color and appearance without any other modifications\n• This feature remains under development and may exhibit instability on certain devices, potentially causing Via crashes. Modules may also fail to process files correctly due to permission issues\n• Since resource files are stored in the cloud, we do not retain older versions to avoid resource wastage. Therefore, if you are using an older version of BetterVia or Via, the installation package generated by the 「Monet Moment」 feature should also be the latest version of Via");
 		addLocalizedString("monet_config_section", "zh-CN", "参数配置");
 		addLocalizedString("monet_config_section", "zh-TW", "參數配置");
 		addLocalizedString("monet_config_section", "en", "Configuration");
@@ -1262,6 +1274,55 @@ public class LocalizedStringProvider {
 		addLocalizedString("monet_save_apk", "zh-CN", "保存APK文件");
 		addLocalizedString("monet_save_apk", "zh-TW", "保存APK檔案");
 		addLocalizedString("monet_save_apk", "en", "Save APK File");
+		addLocalizedString("storage_title", "zh-CN", "存储管理");
+		addLocalizedString("storage_title", "zh-TW", "儲存管理");
+		addLocalizedString("storage_title", "en", "Storage Manager");
+		addLocalizedString("storage_item_title", "zh-CN", "存储");
+		addLocalizedString("storage_item_title", "zh-TW", "儲存");
+		addLocalizedString("storage_item_title", "en", "Storage");
+		addLocalizedString("storage_manage", "zh-CN", "管理");
+		addLocalizedString("storage_manage", "zh-TW", "管理");
+		addLocalizedString("storage_manage", "en", "Manage");
+		addLocalizedString("storage_cache_title", "zh-CN", "模块缓存");
+		addLocalizedString("storage_cache_title", "zh-TW", "模組快取");
+		addLocalizedString("storage_cache_title", "en", "Module Cache");
+		addLocalizedString("storage_clear_data_title", "zh-CN", "清除数据");
+		addLocalizedString("storage_clear_data_title", "zh-TW", "清除資料");
+		addLocalizedString("storage_clear_data_title", "en", "Clear Data");
+		addLocalizedString("storage_clear", "zh-CN", "清除");
+		addLocalizedString("storage_clear", "zh-TW", "清除");
+		addLocalizedString("storage_clear", "en", "Clear");
+		addLocalizedString("storage_confirm_title", "zh-CN", "确认清除");
+		addLocalizedString("storage_confirm_title", "zh-TW", "確認清除");
+		addLocalizedString("storage_confirm_title", "en", "Confirm Deletion");
+		addLocalizedString("storage_confirm_message", "zh-CN", "此操作将删除所有模块缓存与配置文件，并立即退出Via。此操作不可恢复，是否继续？");
+		addLocalizedString("storage_confirm_message", "zh-TW", "此操作將刪除所有模組快取與設定檔，並立即退出 Via。此操作無法復原，是否繼續？");
+		addLocalizedString("storage_confirm_message", "en",
+				"This will delete all module cache and configuration files and immediately exit Via. This action cannot be undone. Continue?");
+		addLocalizedString("storage_confirm_delete", "zh-CN", "立即清除");
+		addLocalizedString("storage_confirm_delete", "zh-TW", "立即清除");
+		addLocalizedString("storage_confirm_delete", "en", "Delete Now");
+		addLocalizedString("storage_cleaning", "zh-CN", "清理中…");
+		addLocalizedString("storage_cleaning", "zh-TW", "清理中…");
+		addLocalizedString("storage_cleaning", "en", "Cleaning…");
+		addLocalizedString("storage_cleaning_title", "zh-CN", "正在清理");
+		addLocalizedString("storage_cleaning_title", "zh-TW", "正在清理");
+		addLocalizedString("storage_cleaning_title", "en", "Cleaning in Progress");
+		addLocalizedString("storage_clean_success", "zh-CN", "清理完成，即将退出");
+		addLocalizedString("storage_clean_success", "zh-TW", "清理完成，即將退出");
+		addLocalizedString("storage_clean_success", "en", "Cleaning complete. Exiting…");
+		addLocalizedString("storage_clean_failed", "zh-CN", "清理失败，请检查权限");
+		addLocalizedString("storage_clean_failed", "zh-TW", "清理失敗，請檢查權限");
+		addLocalizedString("storage_clean_failed", "en", "Cleaning failed. Please check permissions.");
+		addLocalizedString("dialog_cancel", "zh-CN", "取消");
+		addLocalizedString("dialog_cancel", "zh-TW", "取消");
+		addLocalizedString("dialog_cancel", "en", "Cancel");
+		addLocalizedString("dialog_close", "zh-CN", "关闭");
+		addLocalizedString("dialog_close", "zh-TW", "關閉");
+		addLocalizedString("dialog_close", "en", "Close");
+		addLocalizedString("storage_hint", "zh-CN", "管理模块缓存与数据");
+		addLocalizedString("storage_hint", "zh-TW", "管理模組快取與資料");
+		addLocalizedString("storage_hint", "en", "Manage module cache and data");
 	}
 	private void addLocalizedString(String key, String locale, String value) {
 		Map<String, String> localeMap = localizedStrings.get(key);

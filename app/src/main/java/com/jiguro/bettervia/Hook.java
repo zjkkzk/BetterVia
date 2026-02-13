@@ -27,9 +27,9 @@ import java.util.*;
 import org.json.*;
 import android.content.ClipboardManager;
 public class Hook implements IXposedHookLoadPackage {
-	private static final String MODULE_VERSION_NAME = "1.5.0";
-	private static final int MODULE_VERSION_CODE = 20260208;
-	private static final String SUPPORTED_VIA_VERSION = "6.9.0";
+	private static final String MODULE_VERSION_NAME = "1.6.0";
+	private static final int MODULE_VERSION_CODE = 20260213;
+	private static final String SUPPORTED_VIA_VERSION = "7.0.0";
 	private static volatile boolean hasShownBlockedToast = false;
 	private static Activity Context = null;
 	private static Object moduleButtonRef = null;
@@ -327,7 +327,7 @@ public class Hook implements IXposedHookLoadPackage {
 				setKeepScreenOn(ctx, cl, keepScreenOnEnabled);
 				backgroundVideoEnabled = getPrefBoolean(ctx, KEY_BACKGROUND_VIDEO, false);
 				setBackgroundVideoAudio(ctx, cl, backgroundVideoEnabled);
-				XposedHelpers.findAndHookMethod("k.a.o0.f7", cl, "f3", new XC_MethodHook() {
+				XposedHelpers.findAndHookMethod("k.a.o0.g7", cl, "f3", new XC_MethodHook() {
 					@Override
 					protected void afterHookedMethod(MethodHookParam param) throws Throwable {
 						List<Object> orig = (List<Object>) param.getResult();
@@ -630,6 +630,36 @@ public class Hook implements IXposedHookLoadPackage {
 				aboutHintTv.setTextColor(0xFF666666);
 				aboutHintTv.setPadding(0, dp(act, 4), 0, dp(act, 12));
 				root.addView(aboutHintTv);
+				LinearLayout storageRow = new LinearLayout(act);
+				storageRow.setOrientation(LinearLayout.HORIZONTAL);
+				storageRow.setGravity(Gravity.CENTER_VERTICAL);
+				TextView storageTitle = new TextView(act);
+				storageTitle.setText(LocalizedStringProvider.getInstance().get(ctx, "storage_item_title"));
+				storageTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
+				storageTitle.setTextColor(Color.BLACK);
+				storageRow.addView(storageTitle,
+						new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+				TextView storageBtn = new TextView(act);
+				applyClickAnim(storageBtn);
+				storageBtn.setText(LocalizedStringProvider.getInstance().get(ctx, "storage_manage"));
+				storageBtn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+				storageBtn.setPadding(dp(act, 12), dp(act, 6), dp(act, 12), dp(act, 6));
+				storageBtn.setBackground(getRoundBg(act, 0xFFE0E0E0, 8));
+				storageBtn.setTextColor(0xFF000000);
+				storageBtn.setOnClickListener(new View.OnClickListener() {
+					@Override
+					public void onClick(View v) {
+						showStorageManagerDialog(act); 
+					}
+				});
+				storageRow.addView(storageBtn);
+				root.addView(storageRow);
+				TextView storageHintTv = new TextView(act);
+				storageHintTv.setText(LocalizedStringProvider.getInstance().get(ctx, "storage_hint"));
+				storageHintTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+				storageHintTv.setTextColor(0xFF666666);
+				storageHintTv.setPadding(0, dp(act, 4), 0, dp(act, 12));
+				root.addView(storageHintTv);
 				LinearLayout shisuiRow = new LinearLayout(act);
 				shisuiRow.setOrientation(LinearLayout.HORIZONTAL);
 				shisuiRow.setGravity(Gravity.CENTER_VERTICAL);
@@ -924,7 +954,7 @@ public class Hook implements IXposedHookLoadPackage {
 	private boolean isCalledFromK6A2() {
 		StackTraceElement[] stack = Thread.currentThread().getStackTrace();
 		for (StackTraceElement el : stack) {
-			if ("k.a.o0.f6".equals(el.getClassName()) && "X1".equals(el.getMethodName())) {
+			if ("k.a.o0.g6".equals(el.getClassName()) && "X1".equals(el.getMethodName())) {
 				return true;
 			}
 		}
@@ -6695,7 +6725,7 @@ public class Hook implements IXposedHookLoadPackage {
 		if (on) {
 			if (blockMenuBarHook == null) {
 				try {
-					XposedHelpers.findAndHookMethod("k.a.y.ya", cl, "Rb", int.class, int.class, String.class,
+					XposedHelpers.findAndHookMethod("k.a.y.ya", cl, "Sb", int.class, int.class, String.class,
 							String.class, String.class, new XC_MethodHook() {
 								@Override
 								protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
@@ -7685,14 +7715,14 @@ public class Hook implements IXposedHookLoadPackage {
 						getPrefString(ctx, KEY_MONET_PKG, savedBaseIdx == 0 ? "mark.via" : "mark.via.gp"));
 				pkgEdit.setEnabled(false); 
 				pkgEdit.setTextColor(0xFF999999); 
+				final String monetVerName = "7.0.0";
+				final String monetVerCode = "20260211";
 				final EditText verNameEdit = addMonetInput(act, configContainer,
-						LocalizedStringProvider.getInstance().get(ctx, "monet_ver_name"),
-						getPrefString(ctx, KEY_MONET_VER_NAME, "6.9.0"));
+						LocalizedStringProvider.getInstance().get(ctx, "monet_ver_name"), monetVerName);
 				verNameEdit.setEnabled(false);
 				verNameEdit.setTextColor(0xFF999999);
 				final EditText verCodeEdit = addMonetInput(act, configContainer,
-						LocalizedStringProvider.getInstance().get(ctx, "monet_ver_code"),
-						getPrefString(ctx, KEY_MONET_VER_CODE, "20251223"));
+						LocalizedStringProvider.getInstance().get(ctx, "monet_ver_code"), monetVerCode);
 				verCodeEdit.setInputType(InputType.TYPE_CLASS_NUMBER);
 				verCodeEdit.setEnabled(false);
 				verCodeEdit.setTextColor(0xFF999999);
@@ -8645,6 +8675,8 @@ public class Hook implements IXposedHookLoadPackage {
 				thanksTitle.setPadding(0, dp(act, 24), 0, dp(act, 12));
 				root.addView(thanksTitle);
 				addAboutItem(root, act, "", LocalizedStringProvider.getInstance().get(ctx, "about_thanks_content"));
+				addAboutItem(root, act, "", LocalizedStringProvider.getInstance().get(ctx, "about_licence"));
+				addAboutItem(root, act, "", LocalizedStringProvider.getInstance().get(ctx, "about_licence_apksig"));
 				addClickableAboutItem(root, act, "", "Coolapk @半烟半雨溪桥畔", new View.OnClickListener() {
 					@Override
 					public void onClick(View v) {
@@ -9762,6 +9794,203 @@ public class Hook implements IXposedHookLoadPackage {
 					String relativePath = file.getAbsolutePath().substring(rootDir.getAbsolutePath().length() + 1);
 					files.add(relativePath.replace("\\", "/"));
 				}
+			}
+		}
+	}
+	private void showStorageManagerDialog(final Activity act) {
+		if (act == null)
+			return;
+		final String packageName = act.getPackageName(); 
+		act.runOnUiThread(new Runnable() {
+			@Override
+			public void run() {
+				if (act.isFinishing() || act.isDestroyed())
+					return;
+				LinearLayout container = new LinearLayout(act);
+				container.setOrientation(LinearLayout.VERTICAL);
+				int padding = dp(act, 20);
+				container.setPadding(padding, padding, padding, padding);
+				final File internalDir = new File("/data/user/0/" + packageName + "/files/BetterVia/");
+				final File externalDir = new File(
+						"/storage/emulated/0/Android/data/" + packageName + "/files/BetterVia/");
+				long totalSize = getFolderSize(internalDir) + getFolderSize(externalDir);
+				String sizeStr = formatSize(totalSize);
+				final TextView cacheTitle = createTitle(act,
+						LocalizedStringProvider.getInstance().get(act, "storage_cache_title")); 
+				final TextView cacheSize = createSubtitle(act, sizeStr); 
+				Button clearCacheBtn = createButton(act,
+						LocalizedStringProvider.getInstance().get(act, "storage_clear")); 
+				clearCacheBtn.setOnClickListener(new View.OnClickListener() {
+					@Override
+					public void onClick(View v) {
+						deleteFolder(internalDir);
+						deleteFolder(externalDir);
+						cacheSize.setText(formatSize(0));
+					}
+				});
+				container.addView(cacheTitle);
+				container.addView(cacheSize);
+				container.addView(clearCacheBtn);
+				final TextView dataTitle = createTitle(act,
+						LocalizedStringProvider.getInstance().get(act, "storage_clear_data_title")); 
+				final Button clearDataBtn = createButton(act,
+						LocalizedStringProvider.getInstance().get(act, "storage_clear"));
+				clearDataBtn.setOnClickListener(new View.OnClickListener() {
+					@Override
+					public void onClick(View v) {
+						new AlertDialog.Builder(act)
+								.setTitle(LocalizedStringProvider.getInstance().get(act, "storage_confirm_title"))
+								.setMessage(LocalizedStringProvider.getInstance().get(act, "storage_confirm_message"))
+								.setNegativeButton(LocalizedStringProvider.getInstance().get(act, "dialog_cancel"),
+										null)
+								.setPositiveButton(
+										LocalizedStringProvider.getInstance().get(act, "storage_confirm_delete"),
+										new DialogInterface.OnClickListener() {
+											@Override
+											public void onClick(DialogInterface dialog, int which) {
+												performDeepClean(act, packageName, clearDataBtn);
+											}
+										})
+								.show();
+					}
+				});
+				container.addView(space(act, 16)); 
+				container.addView(dataTitle);
+				container.addView(clearDataBtn);
+				AlertDialog dialog = new AlertDialog.Builder(act)
+						.setTitle(LocalizedStringProvider.getInstance().get(act, "storage_title")).setView(container)
+						.setPositiveButton(LocalizedStringProvider.getInstance().get(act, "dialog_close"), null)
+						.create();
+				dialog.show();
+			}
+		});
+	}
+	private static void performDeepClean(final Activity act, final String packageName, final Button triggerBtn) {
+		triggerBtn.setEnabled(false);
+		triggerBtn.setText(LocalizedStringProvider.getInstance().get(act, "storage_cleaning"));
+		final ProgressBar progressBar = new ProgressBar(act);
+		progressBar.setIndeterminate(true);
+		final AlertDialog loadingDialog = new AlertDialog.Builder(act)
+				.setTitle(LocalizedStringProvider.getInstance().get(act, "storage_cleaning_title")).setView(progressBar)
+				.setCancelable(false).create();
+		loadingDialog.show();
+		new Thread(new Runnable() {
+			@Override
+			public void run() {
+				boolean success = true;
+				try {
+					File internalDir = new File("/data/user/0/" + packageName + "/files/BetterVia/");
+					File externalDir = new File(
+							"/storage/emulated/0/Android/data/" + packageName + "/files/BetterVia/");
+					File prefFile = new File("/data/user/0/" + packageName + "/shared_prefs/BetterVia.xml");
+					safeDelete(internalDir);
+					safeDelete(externalDir);
+					if (prefFile.exists()) {
+						prefFile.delete();
+					}
+				} catch (Throwable t) {
+					success = false;
+				}
+				final boolean finalSuccess = success;
+				act.runOnUiThread(new Runnable() {
+					@Override
+					public void run() {
+						loadingDialog.dismiss();
+						if (finalSuccess) {
+							Toast.makeText(act, LocalizedStringProvider.getInstance().get(act, "storage_clean_success"),
+									Toast.LENGTH_LONG).show();
+							act.getWindow().getDecorView().postDelayed(new Runnable() {
+								@Override
+								public void run() {
+									android.os.Process.killProcess(android.os.Process.myPid());
+									System.exit(0);
+								}
+							}, 800);
+						} else {
+							triggerBtn.setEnabled(true);
+							triggerBtn
+									.setText(LocalizedStringProvider.getInstance().get(act, "storage_confirm_delete"));
+							Toast.makeText(act, LocalizedStringProvider.getInstance().get(act, "storage_clean_failed"),
+									Toast.LENGTH_LONG).show();
+						}
+					}
+				});
+			}
+		}).start();
+	}
+	private static long getFolderSize(File dir) {
+		if (dir == null || !dir.exists())
+			return 0;
+		long size = 0;
+		File[] files = dir.listFiles();
+		if (files != null) {
+			for (File f : files) {
+				if (f.isDirectory()) {
+					size += getFolderSize(f);
+				} else {
+					size += f.length();
+				}
+			}
+		}
+		return size;
+	}
+	private static void deleteFolder(File dir) {
+		if (dir == null || !dir.exists())
+			return;
+		File[] files = dir.listFiles();
+		if (files != null) {
+			for (File f : files) {
+				if (f.isDirectory()) {
+					deleteFolder(f);
+				}
+				f.delete();
+			}
+		}
+	}
+	private static String formatSize(long size) {
+		if (size <= 0)
+			return "0 B";
+		final String[] units = new String[]{"B", "KB", "MB", "GB"};
+		int digit = (int) (Math.log10(size) / Math.log10(1024));
+		return String.format(Locale.getDefault(), "%.2f %s", size / Math.pow(1024, digit), units[digit]);
+	}
+	private static TextView createTitle(Context ctx, String text) {
+		TextView tv = new TextView(ctx);
+		tv.setText(text);
+		tv.setTextSize(16);
+		tv.setTypeface(Typeface.DEFAULT_BOLD);
+		return tv;
+	}
+	private static TextView createSubtitle(Context ctx, String text) {
+		TextView tv = new TextView(ctx);
+		tv.setText(text);
+		tv.setTextSize(13);
+		tv.setAlpha(0.7f);
+		return tv;
+	}
+	private static Button createButton(Context ctx, String text) {
+		Button btn = new Button(ctx);
+		btn.setText(text);
+		return btn;
+	}
+	private static View space(Context ctx, int dp) {
+		View v = new View(ctx);
+		v.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(ctx, dp)));
+		return v;
+	}
+	private static void safeDelete(File dir) {
+		if (dir == null || !dir.exists())
+			return;
+		File[] files = dir.listFiles();
+		if (files == null)
+			return;
+		for (File f : files) {
+			try {
+				if (f.isDirectory()) {
+					safeDelete(f);
+				}
+				f.delete();
+			} catch (Throwable ignored) {
 			}
 		}
 	}
